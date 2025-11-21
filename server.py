@@ -3,28 +3,80 @@ from concurrent import futures
 import messages_pb2
 import messages_pb2_grpc
 import ipaddress
+import random
+import time
+import csv
+import json
+import threading
+from dataclasses import dataclass
+
 
 # In-memory key-value storage
-store = {}
+@dataclass
+class service:
+	players = {}
+	lock = threading.Lock()
+			
 
 #base class for key-value rpcs
 class KeyValueStoreServicer(messages_pb2_grpc.KeyValueStoreServicer):
 	def Put(self, request, context):
-		store[request.key] = request.value
+		service.players[request.key] = request.value
 		return messages_pb2.PutResponse(success=True, message=f"Stored key '{request.key}'")
 
 	def Get(self, request, context):
-		value = store.get(request.key, "")
-		return messages_pb2.GetResponse(found=request.key in store, value=value)
+		value = service.players.get(request.key, "")
+		return messages_pb2.GetResponse(found=request.key in service.players, value=value)
 
 	def Delete(self, request, context):
-		if request.key in store:
-			del store[request.key]
+		if request.key in service.players:
+			del service.players[request.key]
 			return messages_pb2.DeleteResponse(success=True, message="Deleted successfully")
 		return messages_pb2.DeleteResponse(success=False, message="Key not found")
 
 #a (by default) key-value server
 class Server():
+
+	def map_id_to_region(self) -> str:
+		if self.server_id == 0:
+			return "NA"
+		elif self.server_id == 1:
+			return "EU"
+		elif self.server_id == 2:
+			return "AS"
+		elif self.server_id == 3:
+			return "SA"
+		elif self.server_id == 4:
+			return "AF"
+		else:
+			return "UNKNOWN"
+
+	##this function will proc between 1 and 5 times a second to simulate player logins
+	def run_player_simulation():
+		while True:
+			num_logins_this_second = random.randint(1, 5)
+			
+			#randomly select players to add to 'online_players' struct
+			service.lock.acquire()
+			for _ in range(num_logins_this_second):
+				random_player = random.choice(list(service.players.items()))
+				random_player.online = True
+			service.lock.release()
+			
+			time.sleep(1)
+
+	## this function will load in players from the player_attributes.csv 
+	# file and store them in the key-value store
+	def load_test_data(self):
+		with open("player_attributes.csv") as f:
+			reader = csv.DictReader(f)
+			for row in reader:
+				obj = json.loads(row["data"])
+				obj.online = False
+				if obj.get("region") == self.map_id_to_region():
+					service.players[row["player_id"]] = obj
+	
+
 	#specify an ip to listen on, or the ip which the server is located in
 	ip: ipaddress.IPv4Address
 
@@ -37,6 +89,11 @@ class Server():
 	#sets up the appropriate RPC class 
 	def setup_rpcs(self):
 		messages_pb2_grpc.add_KeyValueStoreServicer_to_server(KeyValueStoreServicer(), self.__server)
+
+	#add players to server
+	load_test_data()
+	#start player simulation thread
+	threading.Thread(target=__server.run_player_simulation, daemon=True).start()
 
 	#starts listening on the specified port
 	def serve(self, port: int = 50051) -> None:
