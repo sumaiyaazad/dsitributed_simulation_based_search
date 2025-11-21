@@ -24,45 +24,37 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0emessages.proto\x12\x07kvstore\"(\n\nPutRequest\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t\"/\n\x0bPutResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\"\x19\n\nGetRequest\x12\x0b\n\x03key\x18\x01 \x01(\t\"+\n\x0bGetResponse\x12\r\n\x05\x66ound\x18\x01 \x01(\x08\x12\r\n\x05value\x18\x02 \x01(\t\"\x9b\x01\n\rLoginResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\n\n\x02id\x18\x02 \x01(\t\x12:\n\nattributes\x18\x03 \x03(\x0b\x32&.kvstore.LoginResponse.AttributesEntry\x1a\x31\n\x0f\x41ttributesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x02:\x02\x38\x01\"+\n\x0fRegisterRequest\x12\n\n\x02ip\x18\x02 \x01(\t\x12\x0c\n\x04port\x18\x03 \x01(\r\"\x91\x01\n\x15WorkloadResultRequest\x12\n\n\x02id\x18\x01 \x01(\t\x12<\n\x07results\x18\x02 \x03(\x0b\x32+.kvstore.WorkloadResultRequest.ResultsEntry\x1a.\n\x0cResultsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x02:\x02\x38\x01\"N\n\x0cPingResponse\x12\x13\n\x0bprevInQueue\x18\x01 \x01(\x08\x12\x0f\n\x07inQueue\x18\x02 \x01(\x08\x12\n\n\x02ip\x18\x03 \x01(\t\x12\x0c\n\x04port\x18\x04 \x01(\r\":\n\rRoundResponse\x12\x15\n\rroundComplete\x18\x01 \x01(\x05\x12\x12\n\nprevResult\x18\x02 \x01(\x02\x32s\n\rKeyValueStore\x12\x30\n\x03Put\x12\x13.kvstore.PutRequest\x1a\x14.kvstore.PutResponse\x12\x30\n\x03Get\x12\x13.kvstore.GetRequest\x1a\x14.kvstore.GetResponse2\xed\x01\n\x11\x43oordinatorClient\x12\x34\n\x05Login\x12\x13.kvstore.GetRequest\x1a\x16.kvstore.LoginResponse\x12\x39\n\x0cRequestMatch\x12\x13.kvstore.PutRequest\x1a\x14.kvstore.PutResponse\x12\x32\n\x04Ping\x12\x13.kvstore.GetRequest\x1a\x15.kvstore.PingResponse\x12\x33\n\x06Logout\x12\x13.kvstore.GetRequest\x1a\x14.kvstore.GetResponse2\x99\x01\n\x11\x43oordinatorServer\x12:\n\x08Register\x12\x18.kvstore.RegisterRequest\x1a\x14.kvstore.GetResponse\x12H\n\x10WorkloadComplete\x12\x1e.kvstore.WorkloadResultRequest\x1a\x14.kvstore.PutResponse2\x82\x01\n\nGameServer\x12;\n\x0cRequestRound\x12\x13.kvstore.GetRequest\x1a\x16.kvstore.RoundResponse\x12\x37\n\nSendResult\x12\x13.kvstore.PutRequest\x1a\x14.kvstore.PutResponseb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0emessages.proto\x12\nmatchmaker\"\x07\n\x05\x45mpty\"!\n\x0eSimpleResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\"(\n\nPutRequest\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t\"/\n\x0bPutResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\"\x19\n\nGetRequest\x12\x0b\n\x03key\x18\x01 \x01(\t\"+\n\x0bGetResponse\x12\r\n\x05\x66ound\x18\x01 \x01(\x08\x12\r\n\x05value\x18\x02 \x01(\t\"\x16\n\x08PlayerID\x12\n\n\x02id\x18\x01 \x01(\x04\"4\n\x10PlayerAttributes\x12 \n\x02id\x18\x01 \x01(\x0b\x32\x14.matchmaker.PlayerID\"A\n\nPlayerList\x12\x33\n\rplayersOnline\x18\x01 \x03(\x0b\x32\x1c.matchmaker.PlayerAttributes\"Q\n\x0cMatchRequest\x12.\n\x0eplayersInMatch\x18\x01 \x01(\x0b\x32\x16.matchmaker.PlayerList\x12\x11\n\tmatchTime\x18\x02 \x01(\x02\"+\n\x0fRegisterRequest\x12\n\n\x02ip\x18\x02 \x01(\t\x12\x0c\n\x04port\x18\x03 \x01(\r2\xc6\x01\n\rRegionalShard\x12;\n\x0eRequestPlayers\x12\x11.matchmaker.Empty\x1a\x16.matchmaker.PlayerList\x12:\n\x0bSendToMatch\x12\x18.matchmaker.MatchRequest\x1a\x11.matchmaker.Empty\x12<\n\x08IsOnline\x12\x14.matchmaker.PlayerID\x1a\x1a.matchmaker.SimpleResponse2X\n\x11\x43oordinatorServer\x12\x43\n\x08Register\x12\x1b.matchmaker.RegisterRequest\x1a\x1a.matchmaker.SimpleResponseb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'messages_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
-  _globals['_LOGINRESPONSE_ATTRIBUTESENTRY']._loaded_options = None
-  _globals['_LOGINRESPONSE_ATTRIBUTESENTRY']._serialized_options = b'8\001'
-  _globals['_WORKLOADRESULTREQUEST_RESULTSENTRY']._loaded_options = None
-  _globals['_WORKLOADRESULTREQUEST_RESULTSENTRY']._serialized_options = b'8\001'
-  _globals['_PUTREQUEST']._serialized_start=27
-  _globals['_PUTREQUEST']._serialized_end=67
-  _globals['_PUTRESPONSE']._serialized_start=69
-  _globals['_PUTRESPONSE']._serialized_end=116
-  _globals['_GETREQUEST']._serialized_start=118
-  _globals['_GETREQUEST']._serialized_end=143
-  _globals['_GETRESPONSE']._serialized_start=145
-  _globals['_GETRESPONSE']._serialized_end=188
-  _globals['_LOGINRESPONSE']._serialized_start=191
-  _globals['_LOGINRESPONSE']._serialized_end=346
-  _globals['_LOGINRESPONSE_ATTRIBUTESENTRY']._serialized_start=297
-  _globals['_LOGINRESPONSE_ATTRIBUTESENTRY']._serialized_end=346
-  _globals['_REGISTERREQUEST']._serialized_start=348
-  _globals['_REGISTERREQUEST']._serialized_end=391
-  _globals['_WORKLOADRESULTREQUEST']._serialized_start=394
-  _globals['_WORKLOADRESULTREQUEST']._serialized_end=539
-  _globals['_WORKLOADRESULTREQUEST_RESULTSENTRY']._serialized_start=493
-  _globals['_WORKLOADRESULTREQUEST_RESULTSENTRY']._serialized_end=539
-  _globals['_PINGRESPONSE']._serialized_start=541
-  _globals['_PINGRESPONSE']._serialized_end=619
-  _globals['_ROUNDRESPONSE']._serialized_start=621
-  _globals['_ROUNDRESPONSE']._serialized_end=679
-  _globals['_KEYVALUESTORE']._serialized_start=681
-  _globals['_KEYVALUESTORE']._serialized_end=796
-  _globals['_COORDINATORCLIENT']._serialized_start=799
-  _globals['_COORDINATORCLIENT']._serialized_end=1036
-  _globals['_COORDINATORSERVER']._serialized_start=1039
-  _globals['_COORDINATORSERVER']._serialized_end=1192
-  _globals['_GAMESERVER']._serialized_start=1195
-  _globals['_GAMESERVER']._serialized_end=1325
+  _globals['_EMPTY']._serialized_start=30
+  _globals['_EMPTY']._serialized_end=37
+  _globals['_SIMPLERESPONSE']._serialized_start=39
+  _globals['_SIMPLERESPONSE']._serialized_end=72
+  _globals['_PUTREQUEST']._serialized_start=74
+  _globals['_PUTREQUEST']._serialized_end=114
+  _globals['_PUTRESPONSE']._serialized_start=116
+  _globals['_PUTRESPONSE']._serialized_end=163
+  _globals['_GETREQUEST']._serialized_start=165
+  _globals['_GETREQUEST']._serialized_end=190
+  _globals['_GETRESPONSE']._serialized_start=192
+  _globals['_GETRESPONSE']._serialized_end=235
+  _globals['_PLAYERID']._serialized_start=237
+  _globals['_PLAYERID']._serialized_end=259
+  _globals['_PLAYERATTRIBUTES']._serialized_start=261
+  _globals['_PLAYERATTRIBUTES']._serialized_end=313
+  _globals['_PLAYERLIST']._serialized_start=315
+  _globals['_PLAYERLIST']._serialized_end=380
+  _globals['_MATCHREQUEST']._serialized_start=382
+  _globals['_MATCHREQUEST']._serialized_end=463
+  _globals['_REGISTERREQUEST']._serialized_start=465
+  _globals['_REGISTERREQUEST']._serialized_end=508
+  _globals['_REGIONALSHARD']._serialized_start=511
+  _globals['_REGIONALSHARD']._serialized_end=709
+  _globals['_COORDINATORSERVER']._serialized_start=711
+  _globals['_COORDINATORSERVER']._serialized_end=799
 # @@protoc_insertion_point(module_scope)

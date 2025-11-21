@@ -25,9 +25,8 @@ if _version_not_supported:
     )
 
 
-class KeyValueStoreStub(object):
-    """Key-Value Store service
-    """
+class RegionalShardStub(object):
+    """Missing associated documentation comment in .proto file."""
 
     def __init__(self, channel):
         """Constructor.
@@ -35,61 +34,78 @@ class KeyValueStoreStub(object):
         Args:
             channel: A grpc.Channel.
         """
-        self.Put = channel.unary_unary(
-                '/kvstore.KeyValueStore/Put',
-                request_serializer=messages__pb2.PutRequest.SerializeToString,
-                response_deserializer=messages__pb2.PutResponse.FromString,
+        self.RequestPlayers = channel.unary_unary(
+                '/matchmaker.RegionalShard/RequestPlayers',
+                request_serializer=messages__pb2.Empty.SerializeToString,
+                response_deserializer=messages__pb2.PlayerList.FromString,
                 _registered_method=True)
-        self.Get = channel.unary_unary(
-                '/kvstore.KeyValueStore/Get',
-                request_serializer=messages__pb2.GetRequest.SerializeToString,
-                response_deserializer=messages__pb2.GetResponse.FromString,
+        self.SendToMatch = channel.unary_unary(
+                '/matchmaker.RegionalShard/SendToMatch',
+                request_serializer=messages__pb2.MatchRequest.SerializeToString,
+                response_deserializer=messages__pb2.Empty.FromString,
+                _registered_method=True)
+        self.IsOnline = channel.unary_unary(
+                '/matchmaker.RegionalShard/IsOnline',
+                request_serializer=messages__pb2.PlayerID.SerializeToString,
+                response_deserializer=messages__pb2.SimpleResponse.FromString,
                 _registered_method=True)
 
 
-class KeyValueStoreServicer(object):
-    """Key-Value Store service
-    """
+class RegionalShardServicer(object):
+    """Missing associated documentation comment in .proto file."""
 
-    def Put(self, request, context):
-        """Missing associated documentation comment in .proto file."""
+    def RequestPlayers(self, request, context):
+        """retrieves a list of players considered online at the time of the rpc being received
+        """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def Get(self, request, context):
-        """Missing associated documentation comment in .proto file."""
+    def SendToMatch(self, request, context):
+        """coordinator calls this rpc to tell shards which players are.
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def IsOnline(self, request, context):
+        """given a player ID, are they considered in matchmaking in this region?
+        """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
 
-def add_KeyValueStoreServicer_to_server(servicer, server):
+def add_RegionalShardServicer_to_server(servicer, server):
     rpc_method_handlers = {
-            'Put': grpc.unary_unary_rpc_method_handler(
-                    servicer.Put,
-                    request_deserializer=messages__pb2.PutRequest.FromString,
-                    response_serializer=messages__pb2.PutResponse.SerializeToString,
+            'RequestPlayers': grpc.unary_unary_rpc_method_handler(
+                    servicer.RequestPlayers,
+                    request_deserializer=messages__pb2.Empty.FromString,
+                    response_serializer=messages__pb2.PlayerList.SerializeToString,
             ),
-            'Get': grpc.unary_unary_rpc_method_handler(
-                    servicer.Get,
-                    request_deserializer=messages__pb2.GetRequest.FromString,
-                    response_serializer=messages__pb2.GetResponse.SerializeToString,
+            'SendToMatch': grpc.unary_unary_rpc_method_handler(
+                    servicer.SendToMatch,
+                    request_deserializer=messages__pb2.MatchRequest.FromString,
+                    response_serializer=messages__pb2.Empty.SerializeToString,
+            ),
+            'IsOnline': grpc.unary_unary_rpc_method_handler(
+                    servicer.IsOnline,
+                    request_deserializer=messages__pb2.PlayerID.FromString,
+                    response_serializer=messages__pb2.SimpleResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
-            'kvstore.KeyValueStore', rpc_method_handlers)
+            'matchmaker.RegionalShard', rpc_method_handlers)
     server.add_generic_rpc_handlers((generic_handler,))
-    server.add_registered_method_handlers('kvstore.KeyValueStore', rpc_method_handlers)
+    server.add_registered_method_handlers('matchmaker.RegionalShard', rpc_method_handlers)
 
 
  # This class is part of an EXPERIMENTAL API.
-class KeyValueStore(object):
-    """Key-Value Store service
-    """
+class RegionalShard(object):
+    """Missing associated documentation comment in .proto file."""
 
     @staticmethod
-    def Put(request,
+    def RequestPlayers(request,
             target,
             options=(),
             channel_credentials=None,
@@ -102,9 +118,9 @@ class KeyValueStore(object):
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/kvstore.KeyValueStore/Put',
-            messages__pb2.PutRequest.SerializeToString,
-            messages__pb2.PutResponse.FromString,
+            '/matchmaker.RegionalShard/RequestPlayers',
+            messages__pb2.Empty.SerializeToString,
+            messages__pb2.PlayerList.FromString,
             options,
             channel_credentials,
             insecure,
@@ -116,7 +132,7 @@ class KeyValueStore(object):
             _registered_method=True)
 
     @staticmethod
-    def Get(request,
+    def SendToMatch(request,
             target,
             options=(),
             channel_credentials=None,
@@ -129,136 +145,9 @@ class KeyValueStore(object):
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/kvstore.KeyValueStore/Get',
-            messages__pb2.GetRequest.SerializeToString,
-            messages__pb2.GetResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-
-class CoordinatorClientStub(object):
-    """Client-coordinator service- rpcs facing clients, listening on coordinator
-    """
-
-    def __init__(self, channel):
-        """Constructor.
-
-        Args:
-            channel: A grpc.Channel.
-        """
-        self.Login = channel.unary_unary(
-                '/kvstore.CoordinatorClient/Login',
-                request_serializer=messages__pb2.GetRequest.SerializeToString,
-                response_deserializer=messages__pb2.LoginResponse.FromString,
-                _registered_method=True)
-        self.RequestMatch = channel.unary_unary(
-                '/kvstore.CoordinatorClient/RequestMatch',
-                request_serializer=messages__pb2.PutRequest.SerializeToString,
-                response_deserializer=messages__pb2.PutResponse.FromString,
-                _registered_method=True)
-        self.Ping = channel.unary_unary(
-                '/kvstore.CoordinatorClient/Ping',
-                request_serializer=messages__pb2.GetRequest.SerializeToString,
-                response_deserializer=messages__pb2.PingResponse.FromString,
-                _registered_method=True)
-        self.Logout = channel.unary_unary(
-                '/kvstore.CoordinatorClient/Logout',
-                request_serializer=messages__pb2.GetRequest.SerializeToString,
-                response_deserializer=messages__pb2.GetResponse.FromString,
-                _registered_method=True)
-
-
-class CoordinatorClientServicer(object):
-    """Client-coordinator service- rpcs facing clients, listening on coordinator
-    """
-
-    def Login(self, request, context):
-        """Request key is any. Response returns a LoginResponse, which if successful, contains the attributes and id of a client
-        """
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def RequestMatch(self, request, context):
-        """Request key is the client's id. returns success with no message, if client was put into matchmaking.
-        """
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def Ping(self, request, context):
-        """heartbeat. Request key is client's id. returns 
-        """
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def Logout(self, request, context):
-        """logs a client out, removing them from any queuing. Key is client's id, returns an empty string if successful.
-        """
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-
-def add_CoordinatorClientServicer_to_server(servicer, server):
-    rpc_method_handlers = {
-            'Login': grpc.unary_unary_rpc_method_handler(
-                    servicer.Login,
-                    request_deserializer=messages__pb2.GetRequest.FromString,
-                    response_serializer=messages__pb2.LoginResponse.SerializeToString,
-            ),
-            'RequestMatch': grpc.unary_unary_rpc_method_handler(
-                    servicer.RequestMatch,
-                    request_deserializer=messages__pb2.PutRequest.FromString,
-                    response_serializer=messages__pb2.PutResponse.SerializeToString,
-            ),
-            'Ping': grpc.unary_unary_rpc_method_handler(
-                    servicer.Ping,
-                    request_deserializer=messages__pb2.GetRequest.FromString,
-                    response_serializer=messages__pb2.PingResponse.SerializeToString,
-            ),
-            'Logout': grpc.unary_unary_rpc_method_handler(
-                    servicer.Logout,
-                    request_deserializer=messages__pb2.GetRequest.FromString,
-                    response_serializer=messages__pb2.GetResponse.SerializeToString,
-            ),
-    }
-    generic_handler = grpc.method_handlers_generic_handler(
-            'kvstore.CoordinatorClient', rpc_method_handlers)
-    server.add_generic_rpc_handlers((generic_handler,))
-    server.add_registered_method_handlers('kvstore.CoordinatorClient', rpc_method_handlers)
-
-
- # This class is part of an EXPERIMENTAL API.
-class CoordinatorClient(object):
-    """Client-coordinator service- rpcs facing clients, listening on coordinator
-    """
-
-    @staticmethod
-    def Login(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/kvstore.CoordinatorClient/Login',
-            messages__pb2.GetRequest.SerializeToString,
-            messages__pb2.LoginResponse.FromString,
+            '/matchmaker.RegionalShard/SendToMatch',
+            messages__pb2.MatchRequest.SerializeToString,
+            messages__pb2.Empty.FromString,
             options,
             channel_credentials,
             insecure,
@@ -270,7 +159,7 @@ class CoordinatorClient(object):
             _registered_method=True)
 
     @staticmethod
-    def RequestMatch(request,
+    def IsOnline(request,
             target,
             options=(),
             channel_credentials=None,
@@ -283,63 +172,9 @@ class CoordinatorClient(object):
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/kvstore.CoordinatorClient/RequestMatch',
-            messages__pb2.PutRequest.SerializeToString,
-            messages__pb2.PutResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-    @staticmethod
-    def Ping(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/kvstore.CoordinatorClient/Ping',
-            messages__pb2.GetRequest.SerializeToString,
-            messages__pb2.PingResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-    @staticmethod
-    def Logout(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/kvstore.CoordinatorClient/Logout',
-            messages__pb2.GetRequest.SerializeToString,
-            messages__pb2.GetResponse.FromString,
+            '/matchmaker.RegionalShard/IsOnline',
+            messages__pb2.PlayerID.SerializeToString,
+            messages__pb2.SimpleResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -362,14 +197,9 @@ class CoordinatorServerStub(object):
             channel: A grpc.Channel.
         """
         self.Register = channel.unary_unary(
-                '/kvstore.CoordinatorServer/Register',
+                '/matchmaker.CoordinatorServer/Register',
                 request_serializer=messages__pb2.RegisterRequest.SerializeToString,
-                response_deserializer=messages__pb2.GetResponse.FromString,
-                _registered_method=True)
-        self.WorkloadComplete = channel.unary_unary(
-                '/kvstore.CoordinatorServer/WorkloadComplete',
-                request_serializer=messages__pb2.WorkloadResultRequest.SerializeToString,
-                response_deserializer=messages__pb2.PutResponse.FromString,
+                response_deserializer=messages__pb2.SimpleResponse.FromString,
                 _registered_method=True)
 
 
@@ -378,14 +208,7 @@ class CoordinatorServerServicer(object):
     """
 
     def Register(self, request, context):
-        """Request includes ip and port for a server, if successful response returns true and optionally, an id
-        """
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def WorkloadComplete(self, request, context):
-        """Request features per-client results from a workload. Response returns success if results were received.
+        """Shards call this rpc to indicate they're listening for coordinator rpcs
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -397,18 +220,13 @@ def add_CoordinatorServerServicer_to_server(servicer, server):
             'Register': grpc.unary_unary_rpc_method_handler(
                     servicer.Register,
                     request_deserializer=messages__pb2.RegisterRequest.FromString,
-                    response_serializer=messages__pb2.GetResponse.SerializeToString,
-            ),
-            'WorkloadComplete': grpc.unary_unary_rpc_method_handler(
-                    servicer.WorkloadComplete,
-                    request_deserializer=messages__pb2.WorkloadResultRequest.FromString,
-                    response_serializer=messages__pb2.PutResponse.SerializeToString,
+                    response_serializer=messages__pb2.SimpleResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
-            'kvstore.CoordinatorServer', rpc_method_handlers)
+            'matchmaker.CoordinatorServer', rpc_method_handlers)
     server.add_generic_rpc_handlers((generic_handler,))
-    server.add_registered_method_handlers('kvstore.CoordinatorServer', rpc_method_handlers)
+    server.add_registered_method_handlers('matchmaker.CoordinatorServer', rpc_method_handlers)
 
 
  # This class is part of an EXPERIMENTAL API.
@@ -430,156 +248,9 @@ class CoordinatorServer(object):
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/kvstore.CoordinatorServer/Register',
+            '/matchmaker.CoordinatorServer/Register',
             messages__pb2.RegisterRequest.SerializeToString,
-            messages__pb2.GetResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-    @staticmethod
-    def WorkloadComplete(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/kvstore.CoordinatorServer/WorkloadComplete',
-            messages__pb2.WorkloadResultRequest.SerializeToString,
-            messages__pb2.PutResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-
-class GameServerStub(object):
-    """game server rpcs, dependent on the workload of gameservers
-    """
-
-    def __init__(self, channel):
-        """Constructor.
-
-        Args:
-            channel: A grpc.Channel.
-        """
-        self.RequestRound = channel.unary_unary(
-                '/kvstore.GameServer/RequestRound',
-                request_serializer=messages__pb2.GetRequest.SerializeToString,
-                response_deserializer=messages__pb2.RoundResponse.FromString,
-                _registered_method=True)
-        self.SendResult = channel.unary_unary(
-                '/kvstore.GameServer/SendResult',
-                request_serializer=messages__pb2.PutRequest.SerializeToString,
-                response_deserializer=messages__pb2.PutResponse.FromString,
-                _registered_method=True)
-
-
-class GameServerServicer(object):
-    """game server rpcs, dependent on the workload of gameservers
-    """
-
-    def RequestRound(self, request, context):
-        """Used to retrieve info about a new round in the workload of the server. request has client id as key
-        """
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def SendResult(self, request, context):
-        """used for clients to send data in a round back to the server. key is client id, value is result client is sending.
-        """
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-
-def add_GameServerServicer_to_server(servicer, server):
-    rpc_method_handlers = {
-            'RequestRound': grpc.unary_unary_rpc_method_handler(
-                    servicer.RequestRound,
-                    request_deserializer=messages__pb2.GetRequest.FromString,
-                    response_serializer=messages__pb2.RoundResponse.SerializeToString,
-            ),
-            'SendResult': grpc.unary_unary_rpc_method_handler(
-                    servicer.SendResult,
-                    request_deserializer=messages__pb2.PutRequest.FromString,
-                    response_serializer=messages__pb2.PutResponse.SerializeToString,
-            ),
-    }
-    generic_handler = grpc.method_handlers_generic_handler(
-            'kvstore.GameServer', rpc_method_handlers)
-    server.add_generic_rpc_handlers((generic_handler,))
-    server.add_registered_method_handlers('kvstore.GameServer', rpc_method_handlers)
-
-
- # This class is part of an EXPERIMENTAL API.
-class GameServer(object):
-    """game server rpcs, dependent on the workload of gameservers
-    """
-
-    @staticmethod
-    def RequestRound(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/kvstore.GameServer/RequestRound',
-            messages__pb2.GetRequest.SerializeToString,
-            messages__pb2.RoundResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-    @staticmethod
-    def SendResult(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/kvstore.GameServer/SendResult',
-            messages__pb2.PutRequest.SerializeToString,
-            messages__pb2.PutResponse.FromString,
+            messages__pb2.SimpleResponse.FromString,
             options,
             channel_credentials,
             insecure,

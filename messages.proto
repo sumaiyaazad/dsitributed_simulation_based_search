@@ -4,7 +4,7 @@ package matchmaker;
 
 service RegionalShard {
   //retrieves a list of players considered online at the time of the rpc being received
-  rpc RequestPlayers (SimpleRequest) returns (PlayerList);
+  rpc RequestPlayers (Empty) returns (PlayerList);
 
   //coordinator calls this rpc to tell shards which players are.
   rpc SendToMatch (MatchRequest) returns (Empty);
@@ -49,7 +49,7 @@ message GetResponse {
 }
 
 message PlayerID {
-  int id = 1;
+  uint64 id = 1;
 }
 
 message PlayerAttributes {
