@@ -1,4 +1,4 @@
-SERVERS := 0 1 2 3 4
+SERVERS := 0 1 2 3 4 5
 
 run-%:
 	SERVER_ID=$* python server.py

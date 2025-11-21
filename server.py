@@ -48,7 +48,9 @@ class Server():
 			return "SA"
 		elif self.server_id == 4:
 			return "AF"
-		else:
+		elif self.server_id == 5:
+			return "OC"
+		else:	
 			return "UNKNOWN"
 
 	##this function will proc between 1 and 5 times a second to simulate player logins
