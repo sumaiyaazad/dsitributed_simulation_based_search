@@ -1,47 +1,33 @@
 syntax = "proto3";
 
-package kvstore;
+package matchmaker;
 
-// Key-Value Store service
-service KeyValueStore {
-  rpc Put (PutRequest) returns (PutResponse);
-  rpc Get (GetRequest) returns (GetResponse);
-}
+service RegionalShard {
+  //retrieves a list of players considered online at the time of the rpc being received
+  rpc RequestPlayers (SimpleRequest) returns (PlayerList);
 
-// Client-coordinator service- rpcs facing clients, listening on coordinator
-service CoordinatorClient {
-  //Request key is any. Response returns a LoginResponse, which if successful, contains the attributes and id of a client
-  rpc Login (GetRequest) returns (LoginResponse);
+  //coordinator calls this rpc to tell shards which players are.
+  rpc SendToMatch (MatchRequest) returns (Empty);
 
-  //Request key is the client's id. returns success with no message, if client was put into matchmaking.
-  rpc RequestMatch (PutRequest) returns (PutResponse);
-
-  //heartbeat. Request key is client's id. See PingResponse for format of response.
-  rpc Ping (GetRequest) returns (PingResponse);
-
-  //logs a client out, removing them from any queuing. Key is client's id, returns an empty string if successful.
-  rpc Logout (GetRequest) returns (GetResponse);
+  //given a player ID, are they considered in matchmaking in this region?
+  rpc IsOnline (PlayerID) returns (SimpleResponse);
 }
 
 //Server-coordinator service- rpcs facing servers, listening on coordinator
 service CoordinatorServer {
-  //Request includes ip and port for a server, if successful response returns true and optionally, an id
-  rpc Register (RegisterRequest) returns (GetResponse);
-
-  //Request features per-client results from a workload. Response returns success if results were received.
-  rpc WorkloadComplete (WorkloadResultRequest) returns (PutResponse);
-}
-
-//game server rpcs, dependent on the workload of gameservers
-service GameServer {
-  //Used to retrieve info about a new round in the workload of the server. request has client id as key
-  rpc RequestRound (GetRequest) returns (RoundResponse);
-
-  //used for clients to send data in a round back to the server. key is client id, value is result client is sending.
-  rpc SendResult (PutRequest) returns (PutResponse);
+  //Shards call this rpc to indicate they're listening for coordinator rpcs
+  rpc Register (RegisterRequest) returns (SimpleResponse);
 }
 
 // --- Messages ---
+
+message Empty {
+  
+}
+
+message SimpleResponse {
+  bool success = 1;
+}
 
 message PutRequest {
   string key = 1;
@@ -62,47 +48,28 @@ message GetResponse {
   string value = 2;
 }
 
-message LoginResponse {
-  bool success = 1;
-  string id = 2;
-  map<string, float> attributes = 3;
+message PlayerID {
+  int id = 1;
+}
+
+message PlayerAttributes {
+  PlayerID id = 1;
+  //todo
+}
+
+message PlayerList {
+  repeated PlayerAttributes playersOnline = 1;
+}
+
+message MatchRequest {
+  PlayerList playersInMatch = 1;
+
+  //amount of time shards must wait before putting the players in here back into matchmaking
+  float matchTime = 2;
 }
 
 message RegisterRequest {
   string ip = 2;
   uint32 port = 3;
   //map<string, float> attributes = 4;
-}
-
-message WorkloadResultRequest {
-  string id = 1;
-
-  //map client id to some value representing their result
-  map<string, float> results = 2;
-}
-
-message PingResponse {
-  //true if the previous ping, the client was in queue. False if first ping.
-  bool prevInQueue = 1;
-
-  //true if in current ping, client still in queue.
-  bool inQueue = 2;
-
-  //if no longer inQueue, represents the ip for the client to connect to. If empty, client is logged out.
-  string ip = 3;
-
-  //if no longer inQueue, represents the port for the client to connect to.
-  uint32 port = 4;
-}
-
-//in a game server, contains data about another round, or whether clients should disconnect if the round is complete
-message RoundResponse {
-
-  //if positive, represents the current round the game server is on. If negative, represents the game server complete.
-  int32 roundComplete = 1;
-
-  //a numeric score given some client, regarding the previous round
-  float prevResult = 2;
-
-  //Add additional data necessary for the clients to complete a round in the simulated workload here.
 }
