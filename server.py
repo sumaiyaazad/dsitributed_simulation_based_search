@@ -2,6 +2,10 @@ import csv
 import numpy as np
 import grpc
 import faiss
+import random
+import time
+import threading
+from dataclasses import dataclass
 from concurrent import futures
 
 import messages_pb2
@@ -9,14 +13,58 @@ import messages_pb2_grpc
 
 REGIONS = ["NA", "EU", "AS", "SA", "AF", "OC"]
 RANKS = ["Bronze", "Silver", "Gold", "Diamond", "Master", "Grandmaster"]
+server_id = 0
 
 index = None
+
+# In-memory key-value storage
+@dataclass
+class service:
+    players = {}
+    lock = threading.Lock()
+
+# this function will proc between 1 and 5 times a second to simulate player logins
+def run_player_simulation():
+    print("Starting player simulation thread...")
+    while True:
+        num_logins_this_second = random.randint(1, 5)
+
+        # randomly select players to add to 'online_players' struct
+        with service.lock:
+            for _ in range(num_logins_this_second):
+                player_id = random.choice(list(service.players.keys()))
+                service.players[player_id]["is_online"] = True
+                print(f"Player {service.players[player_id]['player_id']} logged in.")
+
+                player_id = random.choice(list(service.players.keys()))
+                service.players[player_id]["is_online"] = False
+                print(f"Player {service.players[player_id]['player_id']} logged out.")
+
+        time.sleep(1)
+        
+def map_server_id_to_region(server_id):
+	if server_id == 0:
+		return "NA"
+	elif server_id == 1:
+		return "EU"
+	elif server_id == 2:
+		return "AS"
+	elif server_id == 3:
+		return "SA"
+	elif server_id == 4:
+		return "AF"
+	elif server_id == 5:
+		return "OC"
+	else:	
+		return "UNKNOWN"
 
 def read_player_attrs(filename):
     players = []
     with open(filename, "r") as f:
         reader = csv.DictReader(f)
         for row in reader:
+            if row["region"] != map_server_id_to_region(server_id):
+                continue
             # Convert numeric fields
             row["player_id"] = int(row["player_id"])
             row["skill_level"] = float(row["skill_level"])
