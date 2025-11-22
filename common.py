@@ -43,7 +43,7 @@ def encode_player(player):
 
 
 def create_faiss_index(vectors):
-    dim = vectors.shape()[1]
+    dim = vectors.shape[1]
     index = faiss.IndexFlatL2(dim)
     index.add(vectors)
 

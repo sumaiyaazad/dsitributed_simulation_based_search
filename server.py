@@ -28,10 +28,14 @@ class ServerShard:
        self.port_no = port_no
        self.zone_name = zone_name
        self._datafile = datafile
+       self.players = {} # map of player_id to online status
        self.index = None
     
     def _load_data(self):
         csv_players = read_player_attrs(self._datafile)
+        csv_players = [p for p in csv_players if p["region"] == self.zone_name]
+        for p in csv_players:
+            self.players[p["player_id"]] = False
         vectors = np.array([encode_player(p) for p in csv_players], dtype=np.float32)
         self.index = create_faiss_index(vectors)
 
@@ -39,12 +43,12 @@ class ServerShard:
         self._load_data()
         assert self.index is not None
         _server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-        messages_pb2_grpc.add_VectorServiceServicer_to_server(PlayerService(self.index), _server)
+        messages_pb2_grpc.add_MatchmakerServiceServicer_to_server(PlayerService(self.index), _server)
         _server.add_insecure_port(f"[::]:{self.port_no}")
         _server.start()
         print("Server started on port 50051")
         _server.wait_for_termination()
 
 if __name__ == "__main__":
-    shard = ServerShard("CA", "../input/player_attributes.csv", 50051)
+    shard = ServerShard("NA", "input/player_attributes.csv", 50051)
     shard.serve()
