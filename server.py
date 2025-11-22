@@ -1,110 +1,92 @@
+import csv
+import numpy as np
 import grpc
+import faiss
 from concurrent import futures
+
 import messages_pb2
 import messages_pb2_grpc
-import ipaddress
-import random
-import time
-import csv
-import json
-import threading
-from dataclasses import dataclass
+
+REGIONS = ["NA", "EU", "AS", "SA", "AF", "OC"]
+RANKS = ["Bronze", "Silver", "Gold", "Diamond", "Master", "Grandmaster"]
+
+index = None
+
+def read_player_attrs(filename):
+    players = []
+    with open(filename, "r") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            # Convert numeric fields
+            row["player_id"] = int(row["player_id"])
+            row["skill_level"] = float(row["skill_level"])
+            row["latency_ms"] = float(row["latency_ms"])
+            row["playtime_hours"] = float(row["playtime_hours"])
+            # region and rank remain strings
+            players.append(row)
+
+    print(f"Loaded {len(players)} players from CSV.")
+    return players
+
+def encode_player(player):
+    """
+    Convert the player attributes into a numeric vector for FAISS.
+    """
+    # One-hot region
+    region_vec = [1.0 if player["region"] == r else 0.0 for r in REGIONS]
+
+    # Rank index
+    rank_idx = float(RANKS.index(player["rank"]))
+
+    # Build final vector
+    vec = [
+        player["skill_level"],
+        player["latency_ms"],
+        rank_idx,
+        player["playtime_hours"],
+    ] + region_vec
+
+    return np.array(vec, dtype=np.float32)
+
+def create_faiss_index(vectors):
+    dim = vectors.shape[1]
+    index = faiss.IndexFlatL2(dim)
+    index.add(vectors)
+
+    print("FAISS index size:", index.ntotal)
+    return index
+
+def search_faiss_index(index, query, num_neighbor=5):
+    distances, indices = index.search(query, num_neighbor)
+    print("\nNearest neighbors from CSV:")
+    return distances, indices
+
+class VectorService(messages_pb2_grpc.VectorServiceServicer):
+    def RequestPlayers(self, request, context):
+        print("Server received:", list(request.values))
+        dists, idxs = search_faiss_index(index)
+        response = messages_pb2.PlayerList(playersIds=idxs)
+        return response
 
 
-# In-memory key-value storage
-@dataclass
-class service:
-	players = {}
-	lock = threading.Lock()
-			
+def statup():
+    playersfilename = "../input/player_attributes.csv"
+    csv_players = read_player_attrs(playersfilename)
+    vectors = np.array([encode_player(p) for p in csv_players], dtype=np.float32)
+    index = create_faiss_index(vectors)
+    
+    return index 
 
-#base class for key-value rpcs
-class KeyValueStoreServicer(messages_pb2_grpc.KeyValueStoreServicer):
-	def Put(self, request, context):
-		service.players[request.key] = request.value
-		return messages_pb2.PutResponse(success=True, message=f"Stored key '{request.key}'")
+def serve():
+    index = statup()
+    
+    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+    messages_pb2_grpc.add_VectorServiceServicer_to_server(VectorService(), server)
+    server.add_insecure_port("[::]:50051")
+    server.start()
+    print("Server started on port 50051")
+    server.wait_for_termination()
 
-	def Get(self, request, context):
-		value = service.players.get(request.key, "")
-		return messages_pb2.GetResponse(found=request.key in service.players, value=value)
-
-	def Delete(self, request, context):
-		if request.key in service.players:
-			del service.players[request.key]
-			return messages_pb2.DeleteResponse(success=True, message="Deleted successfully")
-		return messages_pb2.DeleteResponse(success=False, message="Key not found")
-
-#a (by default) key-value server
-class Server():
-
-	def map_id_to_region(self) -> str:
-		if self.server_id == 0:
-			return "NA"
-		elif self.server_id == 1:
-			return "EU"
-		elif self.server_id == 2:
-			return "AS"
-		elif self.server_id == 3:
-			return "SA"
-		elif self.server_id == 4:
-			return "AF"
-		elif self.server_id == 5:
-			return "OC"
-		else:	
-			return "UNKNOWN"
-
-	##this function will proc between 1 and 5 times a second to simulate player logins
-	def run_player_simulation():
-		while True:
-			num_logins_this_second = random.randint(1, 5)
-			
-			#randomly select players to add to 'online_players' struct
-			service.lock.acquire()
-			for _ in range(num_logins_this_second):
-				random_player = random.choice(list(service.players.items()))
-				random_player.online = True
-			service.lock.release()
-			
-			time.sleep(1)
-
-	## this function will load in players from the player_attributes.csv 
-	# file and store them in the key-value store
-	def load_test_data(self):
-		with open("player_attributes.csv") as f:
-			reader = csv.DictReader(f)
-			for row in reader:
-				obj = json.loads(row["data"])
-				obj.online = False
-				if obj.get("region") == self.map_id_to_region():
-					service.players[row["player_id"]] = obj
-	
-
-	#specify an ip to listen on, or the ip which the server is located in
-	ip: ipaddress.IPv4Address
-
-	#the port to listen on
-	port: int
-
-	#the actual server object listening
-	__server: grpc.server
-
-	#sets up the appropriate RPC class 
-	def setup_rpcs(self):
-		messages_pb2_grpc.add_KeyValueStoreServicer_to_server(KeyValueStoreServicer(), self.__server)
-
-	#add players to server
-	load_test_data()
-	#start player simulation thread
-	threading.Thread(target=__server.run_player_simulation, daemon=True).start()
-
-	#starts listening on the specified port
-	def serve(self, port: int = 50051) -> None:
-		self.port = port
-		self.__server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-		self.__server.add_insecure_port(f"[::]:{port}")
-		print(f"✅ gRPC server running on port {port}")
-		self.__server.start()
-		self.__server.wait_for_termination()
 
 if __name__ == "__main__":
-	Server().serve()
+    serve()

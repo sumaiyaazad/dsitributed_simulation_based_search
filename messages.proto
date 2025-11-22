@@ -1,77 +1,22 @@
 syntax = "proto3";
 
-package matchmaker;
-
-service RegionalShard {
+service MatchmakerService {
   //retrieves a list of players considered online at the time of the rpc being received
-  rpc RequestPlayers (Empty) returns (PlayerList);
+  rpc RequestPlayers (Player) returns (PlayerList);
 
-  //coordinator calls this rpc to tell shards which players are matchmade.
-  rpc SendToMatch (MatchRequest) returns (Empty);
+  //coordinator calls this rpc to tell shards which players are in a match.
+  rpc ConfirmToMatch (PlayerList) returns (Status);
 
-  //given a player ID, are they considered in matchmaking in this region?
-  rpc IsOnline (PlayerID) returns (SimpleResponse);
 }
 
-//Server-coordinator service- rpcs facing servers, listening on coordinator
-service CoordinatorServer {
-  //Shards call this rpc to indicate they're listening for coordinator rpcs
-  rpc Register (RegisterRequest) returns (SimpleResponse);
+message Status {
+  bool isOK = 1;
 }
 
-// --- Messages ---
-
-message Empty {
-  
-}
-
-message SimpleResponse {
-  bool success = 1;
-}
-
-/*
-message PutRequest {
-  string key = 1;
-  string value = 2;
-}
-
-message PutResponse {
-  bool success = 1;
-  string message = 2;
-}
-
-message GetRequest {
-  string key = 1;
-}
-
-message GetResponse {
-  bool found = 1;
-  string value = 2;
-}
-*/
-
-message PlayerID {
-  uint64 id = 1;
-}
-
-message PlayerAttributes {
-  PlayerID id = 1;
-  //todo
+message Player {
+  repeated float values = 1;
 }
 
 message PlayerList {
-  repeated PlayerAttributes playersOnline = 1;
-}
-
-message MatchRequest {
-  PlayerList playersInMatch = 1;
-
-  //amount of time shards must wait before putting the players in here back into matchmaking
-  float matchTime = 2;
-}
-
-message RegisterRequest {
-  string ip = 2;
-  uint32 port = 3;
-  //map<string, float> attributes = 4;
+  repeated int64 playersIds = 1;
 }

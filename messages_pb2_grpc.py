@@ -25,7 +25,7 @@ if _version_not_supported:
     )
 
 
-class RegionalShardStub(object):
+class MatchmakerServiceStub(object):
     """Missing associated documentation comment in .proto file."""
 
     def __init__(self, channel):
@@ -35,23 +35,18 @@ class RegionalShardStub(object):
             channel: A grpc.Channel.
         """
         self.RequestPlayers = channel.unary_unary(
-                '/matchmaker.RegionalShard/RequestPlayers',
-                request_serializer=messages__pb2.Empty.SerializeToString,
+                '/MatchmakerService/RequestPlayers',
+                request_serializer=messages__pb2.Player.SerializeToString,
                 response_deserializer=messages__pb2.PlayerList.FromString,
                 _registered_method=True)
-        self.SendToMatch = channel.unary_unary(
-                '/matchmaker.RegionalShard/SendToMatch',
-                request_serializer=messages__pb2.MatchRequest.SerializeToString,
-                response_deserializer=messages__pb2.Empty.FromString,
-                _registered_method=True)
-        self.IsOnline = channel.unary_unary(
-                '/matchmaker.RegionalShard/IsOnline',
-                request_serializer=messages__pb2.PlayerID.SerializeToString,
-                response_deserializer=messages__pb2.SimpleResponse.FromString,
+        self.ConfirmToMatch = channel.unary_unary(
+                '/MatchmakerService/ConfirmToMatch',
+                request_serializer=messages__pb2.PlayerList.SerializeToString,
+                response_deserializer=messages__pb2.Status.FromString,
                 _registered_method=True)
 
 
-class RegionalShardServicer(object):
+class MatchmakerServiceServicer(object):
     """Missing associated documentation comment in .proto file."""
 
     def RequestPlayers(self, request, context):
@@ -61,47 +56,35 @@ class RegionalShardServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def SendToMatch(self, request, context):
-        """coordinator calls this rpc to tell shards which players are.
-        """
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def IsOnline(self, request, context):
-        """given a player ID, are they considered in matchmaking in this region?
+    def ConfirmToMatch(self, request, context):
+        """coordinator calls this rpc to tell shards which players are in a match.
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
 
-def add_RegionalShardServicer_to_server(servicer, server):
+def add_MatchmakerServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'RequestPlayers': grpc.unary_unary_rpc_method_handler(
                     servicer.RequestPlayers,
-                    request_deserializer=messages__pb2.Empty.FromString,
+                    request_deserializer=messages__pb2.Player.FromString,
                     response_serializer=messages__pb2.PlayerList.SerializeToString,
             ),
-            'SendToMatch': grpc.unary_unary_rpc_method_handler(
-                    servicer.SendToMatch,
-                    request_deserializer=messages__pb2.MatchRequest.FromString,
-                    response_serializer=messages__pb2.Empty.SerializeToString,
-            ),
-            'IsOnline': grpc.unary_unary_rpc_method_handler(
-                    servicer.IsOnline,
-                    request_deserializer=messages__pb2.PlayerID.FromString,
-                    response_serializer=messages__pb2.SimpleResponse.SerializeToString,
+            'ConfirmToMatch': grpc.unary_unary_rpc_method_handler(
+                    servicer.ConfirmToMatch,
+                    request_deserializer=messages__pb2.PlayerList.FromString,
+                    response_serializer=messages__pb2.Status.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
-            'matchmaker.RegionalShard', rpc_method_handlers)
+            'MatchmakerService', rpc_method_handlers)
     server.add_generic_rpc_handlers((generic_handler,))
-    server.add_registered_method_handlers('matchmaker.RegionalShard', rpc_method_handlers)
+    server.add_registered_method_handlers('MatchmakerService', rpc_method_handlers)
 
 
  # This class is part of an EXPERIMENTAL API.
-class RegionalShard(object):
+class MatchmakerService(object):
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
@@ -118,8 +101,8 @@ class RegionalShard(object):
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/matchmaker.RegionalShard/RequestPlayers',
-            messages__pb2.Empty.SerializeToString,
+            '/MatchmakerService/RequestPlayers',
+            messages__pb2.Player.SerializeToString,
             messages__pb2.PlayerList.FromString,
             options,
             channel_credentials,
@@ -132,7 +115,7 @@ class RegionalShard(object):
             _registered_method=True)
 
     @staticmethod
-    def SendToMatch(request,
+    def ConfirmToMatch(request,
             target,
             options=(),
             channel_credentials=None,
@@ -145,112 +128,9 @@ class RegionalShard(object):
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/matchmaker.RegionalShard/SendToMatch',
-            messages__pb2.MatchRequest.SerializeToString,
-            messages__pb2.Empty.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-    @staticmethod
-    def IsOnline(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/matchmaker.RegionalShard/IsOnline',
-            messages__pb2.PlayerID.SerializeToString,
-            messages__pb2.SimpleResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-
-class CoordinatorServerStub(object):
-    """Server-coordinator service- rpcs facing servers, listening on coordinator
-    """
-
-    def __init__(self, channel):
-        """Constructor.
-
-        Args:
-            channel: A grpc.Channel.
-        """
-        self.Register = channel.unary_unary(
-                '/matchmaker.CoordinatorServer/Register',
-                request_serializer=messages__pb2.RegisterRequest.SerializeToString,
-                response_deserializer=messages__pb2.SimpleResponse.FromString,
-                _registered_method=True)
-
-
-class CoordinatorServerServicer(object):
-    """Server-coordinator service- rpcs facing servers, listening on coordinator
-    """
-
-    def Register(self, request, context):
-        """Shards call this rpc to indicate they're listening for coordinator rpcs
-        """
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-
-def add_CoordinatorServerServicer_to_server(servicer, server):
-    rpc_method_handlers = {
-            'Register': grpc.unary_unary_rpc_method_handler(
-                    servicer.Register,
-                    request_deserializer=messages__pb2.RegisterRequest.FromString,
-                    response_serializer=messages__pb2.SimpleResponse.SerializeToString,
-            ),
-    }
-    generic_handler = grpc.method_handlers_generic_handler(
-            'matchmaker.CoordinatorServer', rpc_method_handlers)
-    server.add_generic_rpc_handlers((generic_handler,))
-    server.add_registered_method_handlers('matchmaker.CoordinatorServer', rpc_method_handlers)
-
-
- # This class is part of an EXPERIMENTAL API.
-class CoordinatorServer(object):
-    """Server-coordinator service- rpcs facing servers, listening on coordinator
-    """
-
-    @staticmethod
-    def Register(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/matchmaker.CoordinatorServer/Register',
-            messages__pb2.RegisterRequest.SerializeToString,
-            messages__pb2.SimpleResponse.FromString,
+            '/MatchmakerService/ConfirmToMatch',
+            messages__pb2.PlayerList.SerializeToString,
+            messages__pb2.Status.FromString,
             options,
             channel_credentials,
             insecure,
