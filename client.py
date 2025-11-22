@@ -1,26 +1,32 @@
-#!/usr/bin/env python3
 import grpc
-import kvstore_pb2
-import kvstore_pb2_grpc
+import numpy as np
+
+import messages_pb2
+import messages_pb2_grpc
+
+
+from common import encode_player
 
 def run():
     with grpc.insecure_channel("localhost:50051") as channel:
-        stub = kvstore_pb2_grpc.KeyValueStoreStub(channel)
+        stub = messages_pb2_grpc.MatchmakerServiceStub(channel)
+        query_player = {
+                "player_id": 999,
+                "skill_level": 88,
+                "latency_ms": 26,
+                "region": "NA",
+                "rank": "Diamond",
+                "playtime_hours": 410
+            }
 
-        print("Sending Put request...")
-        put_response = stub.Put(kvstore_pb2.PutRequest(key="foo", value="bar"))
-        print("Put:", put_response.message)
+        query_vec = encode_player(query_player).reshape(1, -1)
 
-        print("Sending Get request...")
-        get_response = stub.Get(kvstore_pb2.GetRequest(key="foo"))
-        if get_response.found:
-            print("Get: Found value =", get_response.value)
-        else:
-            print("Get: Key not found")
+        request = messages_pb2.Player(values = query_vec) 
 
-        print("Sending Delete request...")
-        del_response = stub.Delete(kvstore_pb2.DeleteRequest(key="foo"))
-        print("Delete:", del_response.message)
+        response = stub.RequestPlayers(request)
+
+        print("Client received:", list(response.values))
+
 
 if __name__ == "__main__":
     run()
