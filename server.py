@@ -1,5 +1,8 @@
 import numpy as np
 import grpc
+import random
+import time
+import threading
 from concurrent import futures
 
 import messages_pb2
@@ -29,6 +32,7 @@ class ServerShard:
        self.zone_name = zone_name
        self._datafile = datafile
        self.players = {} # map of player_id to online status
+       self.lock = threading.Lock()
        self.index = None
     
     def _load_data(self):
@@ -39,12 +43,33 @@ class ServerShard:
         vectors = np.array([encode_player(p) for p in csv_players], dtype=np.float32)
         self.index = create_faiss_index(vectors)
 
+        # this function will proc between 1 and 5 times a second to simulate player logins
+    def run_player_simulation(self):
+        print("Starting player simulation thread...")
+        while True:
+            num_logins_this_second = random.randint(1, 5)
+
+            # randomly select players to add to 'online_players' struct
+            with self.lock:
+                for _ in range(num_logins_this_second):
+                    player_id = random.choice(list(self.players.keys()))
+                    self.players[player_id] = True
+                    print(f"Player {player_id} logged in.")
+
+                    player_id = random.choice(list(self.players.keys()))
+                    self.players[player_id] = False
+                    print(f"Player {player_id} logged out.")
+
+            time.sleep(1)
+
     def serve(self):
         self._load_data()
         assert self.index is not None
         _server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
         messages_pb2_grpc.add_MatchmakerServiceServicer_to_server(PlayerService(self.index), _server)
         _server.add_insecure_port(f"[::]:{self.port_no}")
+        t = threading.Thread(target=self.run_player_simulation, daemon=True)
+        t.start()
         _server.start()
         print("Server started on port 50051")
         _server.wait_for_termination()
