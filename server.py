@@ -3,6 +3,7 @@ import grpc
 import random
 import time
 import threading
+import os
 from concurrent import futures
 
 import messages_pb2
@@ -27,9 +28,9 @@ class PlayerService(messages_pb2_grpc.MatchmakerServiceServicer):
         return response
 
 class ServerShard:
-    def __init__(self, zone_name, datafile, port_no=50051):
+    def __init__(self, server_id, datafile, port_no=50051):
        self.port_no = port_no
-       self.zone_name = zone_name
+       self.server_id = server_id
        self._datafile = datafile
        self.players = {} # map of player_id to online status
        self.lock = threading.Lock()
@@ -37,7 +38,7 @@ class ServerShard:
     
     def _load_data(self):
         csv_players = read_player_attrs(self._datafile)
-        csv_players = [p for p in csv_players if p["region"] == self.zone_name]
+        csv_players = [p for p in csv_players if p["region"] == self.map_server_id_to_region(self.server_id)]
         for p in csv_players:
             self.players[p["player_id"]] = False
         vectors = np.array([encode_player(p) for p in csv_players], dtype=np.float32)
@@ -62,6 +63,22 @@ class ServerShard:
 
             time.sleep(1)
 
+    def map_server_id_to_region(server_id):
+        if server_id == 0:
+            return "NA"
+        elif server_id == 1:
+            return "EU"
+        elif server_id == 2:
+            return "AS"
+        elif server_id == 3:
+            return "SA"
+        elif server_id == 4:
+            return "AF"
+        elif server_id == 5:
+            return "OC"
+        else:	
+            return "UNKNOWN"
+
     def serve(self):
         self._load_data()
         assert self.index is not None
@@ -75,5 +92,6 @@ class ServerShard:
         _server.wait_for_termination()
 
 if __name__ == "__main__":
-    shard = ServerShard("NA", "input/player_attributes.csv", 50051)
+    server_id = int(os.environ.get("SERVER_ID", 0))
+    shard = ServerShard(server_id, "input/player_attributes.csv", 50051)
     shard.serve()
