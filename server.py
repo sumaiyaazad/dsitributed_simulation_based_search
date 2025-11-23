@@ -17,10 +17,12 @@ server_id = 0
 
 class PlayerService(messages_pb2_grpc.MatchmakerServiceServicer):
 
-    def __init__(self, index, players, lock):
+    def __init__(self, index, online_players, offline_players, busy_players, lock):
         super().__init__()
         self.index = index
-        self.players = players   # shared dict: player_id -> bool
+        self.online_players = online_players   #set of online player_ids
+        self.busy_players = busy_players       #set of busy player_ids
+        self.offline_players = offline_players #set of offline player_ids
         self.lock = lock
 
     def RequestPlayers(self, request, context):
@@ -34,8 +36,10 @@ class PlayerService(messages_pb2_grpc.MatchmakerServiceServicer):
         result = []
         with self.lock:
             for pid in ids:
-                if self.players.get(pid):
+                if pid in self.online_players and pid not in self.busy_players:
                     result.append(pid)
+                if len(result) >= 10:
+                    break
 
         return messages_pb2.PlayerList(playersIds=result)
 
@@ -44,7 +48,9 @@ class ServerShard:
        self.port_no = port_no
        self.server_id = server_id
        self._datafile = datafile
-       self.players = {} # map of player_id to online status
+       self.online_players = set() #set containing player_ids of online players
+       self.busy_players = set()   #set containing player_ids of busy players
+       self.offline_players = set() #set containing player_ids of offline players, should be inverse of online_players
        self.lock = threading.Lock()
        self.index = None
     
@@ -52,11 +58,15 @@ class ServerShard:
         csv_players = read_player_attrs(self._datafile)
         csv_players = [p for p in csv_players if p["region"] == self.map_server_id_to_region(self.server_id)]
         for p in csv_players:
-            self.players[p["player_id"]] = False
+            n = random.randint(1, 10)
+            if n == 1:
+                self.online_players.add(p["player_id"])
+            else:
+                self.offline_players.add(p["player_id"])
         vectors = np.array([encode_player(p) for p in csv_players], dtype=np.float32)
         self.index = create_faiss_index(vectors)
-
-        # this function will proc between 1 and 5 times a second to simulate player logins
+    
+    # this function will proc between 1 and 5 times a second to simulate player logins
     def run_player_simulation(self):
         print("Starting player simulation thread...")
         while True:
@@ -65,13 +75,15 @@ class ServerShard:
             # randomly select players to add to 'online_players' struct
             with self.lock:
                 for _ in range(num_logins_this_second):
-                    player_id = random.choice(list(self.players.keys()))
-                    self.players[player_id] = True
-                    print(f"Player {player_id} logged in.")
+                    choice = random.choice(list(self.offline_players))
+                    self.online_players.add(choice)
+                    self.offline_players.remove(choice)
+                    print(f"Player {choice} logged in.")
 
-                    player_id = random.choice(list(self.players.keys()))
-                    self.players[player_id] = False
-                    print(f"Player {player_id} logged out.")
+                    choice = random.choice(list(self.online_players))
+                    self.offline_players.add(choice)
+                    self.online_players.remove(choice)
+                    print(f"Player {choice} logged out.")
 
             time.sleep(1)
 
@@ -96,7 +108,7 @@ class ServerShard:
         assert self.index is not None
         _server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
         # pass shared players dict and lock into the servicer
-        messages_pb2_grpc.add_MatchmakerServiceServicer_to_server(PlayerService(self.index, self.players, self.lock), _server)
+        messages_pb2_grpc.add_MatchmakerServiceServicer_to_server(PlayerService(self.index, self.offline_players, self.online_players, self.busy_players, self.lock), _server)
         _server.add_insecure_port(f"[::]:{self.port_no}")
         t = threading.Thread(target=self.run_player_simulation, daemon=True)
         t.start()
