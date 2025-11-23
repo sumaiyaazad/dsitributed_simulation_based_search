@@ -29,10 +29,11 @@ class PlayerService(messages_pb2_grpc.MatchmakerServiceServicer):
         print("Server received:", list(request.values))
 
         query = np.ascontiguousarray([list(request.values)], dtype=np.float32)
+        #grab 30 nearest neighbors since many will be offline or busy
         dists, idxs = search_faiss_index(self.index, query, num_neighbor=30)
         ids = [int(x) for x in idxs.flatten().tolist() if int(x) >= 0]
 
-        # example: filter by online status using the shared players dict
+        # filter neighbors by online status to make sure they are available
         result = []
         with self.lock:
             for pid in ids:
@@ -68,6 +69,7 @@ class ServerShard:
     def _load_data(self):
         csv_players = read_player_attrs(self._datafile)
         csv_players = [p for p in csv_players if p["region"] == self.map_server_id_to_region(self.server_id)]
+        # randomly assign some players as online 1 in 10 chance
         for p in csv_players:
             n = random.randint(1, 10)
             if n == 1:
