@@ -17,15 +17,27 @@ server_id = 0
 
 class PlayerService(messages_pb2_grpc.MatchmakerServiceServicer):
 
-    def __init__(self, index):
+    def __init__(self, index, players, lock):
         super().__init__()
         self.index = index
+        self.players = players   # shared dict: player_id -> bool
+        self.lock = lock
 
     def RequestPlayers(self, request, context):
         print("Server received:", list(request.values))
-        dists, idxs = search_faiss_index(self.index)
-        response = messages_pb2.PlayerList(playersIds=idxs)
-        return response
+
+        query = np.ascontiguousarray([list(request.values)], dtype=np.float32)
+        dists, idxs = search_faiss_index(self.index, query, num_neighbor=30)
+        ids = [int(x) for x in idxs.flatten().tolist() if int(x) >= 0]
+
+        # example: filter by online status using the shared players dict
+        result = []
+        with self.lock:
+            for pid in ids:
+                if self.players.get(pid):
+                    result.append(pid)
+
+        return messages_pb2.PlayerList(playersIds=result)
 
 class ServerShard:
     def __init__(self, server_id, datafile, port_no=50051):
@@ -63,7 +75,7 @@ class ServerShard:
 
             time.sleep(1)
 
-    def map_server_id_to_region(server_id):
+    def map_server_id_to_region(self, server_id):
         if server_id == 0:
             return "NA"
         elif server_id == 1:
@@ -83,7 +95,8 @@ class ServerShard:
         self._load_data()
         assert self.index is not None
         _server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-        messages_pb2_grpc.add_MatchmakerServiceServicer_to_server(PlayerService(self.index), _server)
+        # pass shared players dict and lock into the servicer
+        messages_pb2_grpc.add_MatchmakerServiceServicer_to_server(PlayerService(self.index, self.players, self.lock), _server)
         _server.add_insecure_port(f"[::]:{self.port_no}")
         t = threading.Thread(target=self.run_player_simulation, daemon=True)
         t.start()

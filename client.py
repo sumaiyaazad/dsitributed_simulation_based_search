@@ -21,11 +21,13 @@ def run():
 
         query_vec = encode_player(query_player).reshape(1, -1)
 
-        request = messages_pb2.Player(values = query_vec) 
+        vec = encode_player(query_player)
+        request = messages_pb2.Player(values=vec.tolist())
 
         response = stub.RequestPlayers(request)
 
-        print("Client received:", list(response.values))
+        # PlayerList has playersIds, not values
+        print("Client received IDs:", list(response.playersIds))
 
 
 if __name__ == "__main__":
