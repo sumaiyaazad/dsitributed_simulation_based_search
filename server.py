@@ -38,10 +38,21 @@ class PlayerService(messages_pb2_grpc.MatchmakerServiceServicer):
             for pid in ids:
                 if pid in self.online_players and pid not in self.busy_players:
                     result.append(pid)
+                    self.busy_players.add(pid)  #mark player as busy
                 if len(result) >= 10:
                     break
 
         return messages_pb2.PlayerList(playersIds=result)
+    
+    def ConfirmToMatch(self, request, context):
+        print("Server received confirmation for player ID:", request.playerId)
+        with self.lock:
+            if request.playerId in self.busy_players:
+                #for now make the player go offline when match is found
+                self.busy_players.remove(request.playerId)
+                self.offline_players.add(request.playerId)
+                self.online_players.remove(request.playerId)
+        return messages_pb2.Confirmation(status="Confirmed")
 
 class ServerShard:
     def __init__(self, server_id, datafile, port_no=50051):
@@ -76,11 +87,15 @@ class ServerShard:
             with self.lock:
                 for _ in range(num_logins_this_second):
                     choice = random.choice(list(self.offline_players))
+                    if choice in self.busy_players:
+                        continue
                     self.online_players.add(choice)
                     self.offline_players.remove(choice)
                     print(f"Player {choice} logged in.")
 
                     choice = random.choice(list(self.online_players))
+                    if choice in self.busy_players:
+                        continue
                     self.offline_players.add(choice)
                     self.online_players.remove(choice)
                     print(f"Player {choice} logged out.")
