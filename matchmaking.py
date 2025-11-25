@@ -243,7 +243,7 @@ class MatchTree:
 		return ret	
 
 	# initializes this matchtree
-	def __init__(self, player: Player, rules, rulesetIndex: int, maxLinks = 100):
+	def __init__(self, player: Player, rules, rulesetIndex: int):
 		self.player = player
 		self.rules = rules
 		self.ruleIndex = rulesetIndex
