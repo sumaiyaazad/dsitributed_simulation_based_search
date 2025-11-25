@@ -19,13 +19,15 @@ def run():
                 "playtime_hours": 410
             }
 
-        query_vec = encode_player(query_player).reshape(1, -1)
-
-        request = messages_pb2.Player(values = query_vec) 
+        # 1D numpy array
+        query_vec = encode_player(query_player)   # shape (D,)
+        # Convert to plain list of floats for protobuf
+        request = messages_pb2.Player(values=list(float(x) for x in query_vec))
 
         response = stub.RequestPlayers(request)
 
-        print("Client received:", list(response.values))
+        # PlayerList has field playersIds, not values
+        print("Client received player_ids:", list(response.playersIds))
 
 
 if __name__ == "__main__":

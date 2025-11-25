@@ -42,11 +42,15 @@ def encode_player(player):
     return np.array(vec, dtype=np.float32)
 
 
-def create_faiss_index(vectors):
-    dim = vectors.shape()[1]
+def create_faiss_index(vectors: np.ndarray):
+    """
+    Given a 2D float32 numpy array of shape (N, D),
+    build and return a FAISS IndexFlatL2.
+    """
+    assert len(vectors.shape) == 2, "vectors must be 2D (N, D)"
+    dim = vectors.shape[1]
     index = faiss.IndexFlatL2(dim)
-    index.add(vectors)
-
+    index.add(vectors.astype(np.float32))
     print("FAISS index size:", index.ntotal)
     return index
 
