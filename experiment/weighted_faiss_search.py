@@ -1,6 +1,7 @@
 import numpy as np
 import csv
 import faiss
+from common import WEIGHTS
 
 REGIONS = ["NA", "EU", "AS", "SA", "AF", "OC"]
 RANKS = ["Bronze", "Silver", "Gold", "Diamond", "Master", "Grandmaster"]
@@ -21,14 +22,7 @@ def read_player_attrs(filename):
     print(f"Loaded {len(players)} players from CSV.")
     return players
 
-# Weighting priorities: rank > skill > latency
-WEIGHTS = {
-    "rank": 10.0,        # highest weight 
-    "skill": 5.0,
-    "latency": 2.0,
-    "playtime": 0.5,     # minor
-    "region": 0.2        # very small influence
-}
+
 
 def encode_player_weighted(p):
     """Create a weighted vector for FAISS matchmaking."""
