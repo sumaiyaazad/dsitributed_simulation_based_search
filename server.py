@@ -37,7 +37,7 @@ class PlayerService(messages_pb2_grpc.MatchmakerServiceServicer):
         result = []
         with self.lock:
             for pid in ids:
-                if pid in self.online_players and pid not in self.busy_players:
+                if pid not in self.busy_players:
                     result.append(pid)
                     self.busy_players.add(pid)  #mark player as busy
                 if len(result) >= 10:
@@ -51,8 +51,8 @@ class PlayerService(messages_pb2_grpc.MatchmakerServiceServicer):
             if request.playerId in self.busy_players:
                 #for now make the player go offline when match is found
                 self.busy_players.remove(request.playerId)
-                self.offline_players.add(request.playerId)
-                self.online_players.remove(request.playerId)
+                # self.offline_players.add(request.playerId)
+                # self.online_players.remove(request.playerId)
         return messages_pb2.Confirmation(status="Confirmed")
 
 class ServerShard:
