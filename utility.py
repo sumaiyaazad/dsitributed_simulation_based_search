@@ -88,7 +88,9 @@ class LinkedList:
 			k = k.nextN
 		return False
 				
-	
+	def __iter__(self):
+		return self.start
+
 
 
 # doubly linked list, non circular, rudimentary.
@@ -137,3 +139,12 @@ class LinkedListNode:
 
 	def __len__(self):
 		return self.__len
+	
+	def __iter__(self):
+		return self
+
+	def __next__(self):
+		if self.nextN is not None:
+			return self.nextN
+		else:
+			raise StopIteration
