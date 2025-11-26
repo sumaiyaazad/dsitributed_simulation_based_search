@@ -18,7 +18,8 @@ class PlayerService(messages_pb2_grpc.MatchmakerServiceServicer):
 
     def RequestPlayers(self, request, context):
         print("Server received:", list(request.values))
-        dists, idxs = search_faiss_index(self.index)
+        query = np.array(list(request.values), dtype=np.float32).reshape(1, -1)
+        dists, idxs = search_faiss_index(self.index, query, num_neighbors=10)
         response = messages_pb2.PlayerList(playersIds=idxs)
         return response
 
@@ -38,7 +39,7 @@ class ServerShard:
         self._load_data()
         assert self.index is not None
         _server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-        messages_pb2_grpc.add_VectorServiceServicer_to_server(PlayerService(self.index), _server)
+        messages_pb2_grpc.add_MatchmakerServiceServicer_to_server(PlayerService(self.index), _server)
         _server.add_insecure_port(f"[::]:{self.port_no}")
         _server.start()
         print("Server started on port 50051")

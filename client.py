@@ -21,11 +21,11 @@ def run():
 
         query_vec = encode_player(query_player).reshape(1, -1)
 
-        request = messages_pb2.Player(values = query_vec) 
+        request = messages_pb2.Player(values=query_vec.flatten().tolist())
 
         response = stub.RequestPlayers(request)
 
-        print("Client received:", list(response.values))
+        print("Client received:", list(response.playersIds))
 
 
 if __name__ == "__main__":

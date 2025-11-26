@@ -2,3 +2,4 @@ grpcio-tools>1.60
 scipy
 numpy
 faiss-cpu
+pandas
