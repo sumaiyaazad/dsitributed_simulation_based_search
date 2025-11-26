@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 class LinkedList:
-	start: LinkedListNode
-	end: LinkedListNode
+	start: LinkedListNode = None
+	end: LinkedListNode = None
 
 	def __len__(self):
+		if self.start is None:
+			return 0
 		return len(self.start)
 	
 	def __get(self, ind=0):
@@ -56,9 +58,13 @@ class LinkedList:
 			
 	def push_back(self, data):
 		self.end = LinkedListNode(data, self.end)
+		if self.start is None:
+			self.start = self.end
 
 	def push_front(self, data):
 		self.start = LinkedListNode(data, None, self.start)
+		if self.end is None:
+			self.end = self.start
 
 	def pop_back(self):
 		self.end = self.end.prevN
@@ -89,7 +95,12 @@ class LinkedList:
 		return False
 				
 	def __iter__(self):
+		if self.start is None:
+			return self
 		return self.start
+	
+	def __next__(self):
+		raise StopIteration
 
 
 

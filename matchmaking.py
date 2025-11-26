@@ -71,6 +71,8 @@ class Player:
 
 	def __del__(self):
 		self.clearTrees()
+		for t in self.trees:
+			del t
 
 	# updates all links for all this player's trees, with the given starting player and count
 	def updateTrees(self, count, startingPlayer):
@@ -81,7 +83,12 @@ class Player:
 	def getCurrentTree(self) -> MatchTree:
 		return self.trees[self.rulesetNum]
 
-	#Add additional attribute information below.
+	def __init__(self, name):
+		self.name = name
+	#Add additional attribute information below, and to the constructor above.
+
+	#player's name
+	name = ""
 
 # MatchTree: a class containing a player, a reference to a ruleset,
 # and references to MatchTrees within a certain range older than the current player who can match with
@@ -191,11 +198,11 @@ class MatchTree:
 
 	# starting from the specified player, find up to count links (if negative, search previous players)
 	# returns a list of players which it has made new links with
-	def searchForNewLinks(self, count, startingPlayer):
+	def searchForNewLinks(self, count, startingPlayer: Player):
 		tmpPlayer = startingPlayer
 		newLinks = []
 		while(count != 0 and tmpPlayer != None):
-			if(self.addLinkIfValid(tmpPlayer)):
+			if(self.addLinkIfValid(tmpPlayer.trees[self.ruleIndex])):
 				newLinks.append(tmpPlayer)
 			tmpPlayer = tmpPlayer.olderPlayer if count > 0 else tmpPlayer.newerPlayer
 			count -= 1 if count > 0 else -1
@@ -213,9 +220,10 @@ class MatchTree:
 		newSet = otherPlayers.copy()
 		newSet.add(self.player)
 		failedMatchup = False
+		newSetFrozen = frozenset(newSet)
 
 		# if we've already encountered this set of otherPlayers, skip checks
-		if otherPlayers not in self.validMatchups:
+		if newSetFrozen not in self.validMatchups:
 			# check if this player is incompatible with any players specified in otherPlayers
 			for p in otherPlayers:
 				if(p in self.invalidParentsMap):
@@ -229,7 +237,7 @@ class MatchTree:
 		
 		ret = set()
 		if self.getRuleset().IsValid(newSet):
-			self.validMatchups.add(newSet)
+			self.validMatchups.add(newSetFrozen)
 			for p in otherPlayers:
 				p.trees[self.ruleIndex].validMatchupsRefs.add(self)
 			
@@ -293,8 +301,8 @@ class Queue:
 			count = 0
 			# update links
 			while(playerUpdate is not None and count < self.maxLinksToCheck):
-				if(playerCheckIndex < len(self.players)):
-					playerUpdate.searchForNewLinks(1, self.players[playerCheckIndex])
+				if(playerCheckIndex < len(self.players) and playerCheckIndex >= 0):
+					playerUpdate.updateTrees(1, self.players[playerCheckIndex])
 				playerCheckIndex -= 1
 				count += 1
 				playerUpdate = playerUpdate.newerPlayer
@@ -310,11 +318,16 @@ class Queue:
 
 			#maps ruleset to matchups
 			matches = []
-			for i in range(0, p.ruleIndex+1):
+			for i in range(0, p.rulesetNum+1):
 				tmp = p.trees[i].findMatchups(depth, set())
 				matches.append(tmp)
 			ret[p] = matches
 		return ret
+	
+	# given the output of searchForMatches, retrieve
+	# a list of best matches indicated by the player order
+	# and priority. No matchups returned will consist of duplicate players.
+	# def getBestMatches(self)
 	
 	#decrements all player timers and updates their ruleset num as needed
 	def doTick(self, delta=1):
@@ -327,3 +340,6 @@ class Queue:
 					p.timer = p.trees.getRuleset().timer
 					p.getCurrentTree().searchForLinks(self.maxLinksToCheck)
 
+	def __del__(self):
+		for p in self.players:
+			del p
