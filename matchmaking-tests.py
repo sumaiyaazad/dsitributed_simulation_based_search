@@ -3,7 +3,7 @@ import pytest
 from matchmaking import Queue, Player
 
 #test that a link exists for all players after the current player in the queue
-def testAllLinks(p, q, removedPlayers, treeInd = 0):
+def _testAllLinks(p, q, removedPlayers, treeInd = 0):
 	for i in range(len(q.players)):
 		player = p[i]
 		testSet = p[i:].copy()
@@ -11,7 +11,7 @@ def testAllLinks(p, q, removedPlayers, treeInd = 0):
 		assert player not in removedPlayers
 		for tree in player.trees[treeInd].links:
 			assert tree.player not in removedPlayers
-			assert tree.player in testSet
+			assert tree.player not in resultingPlayers
 			resultingPlayers.append(tree.player)
 			testSet.remove(tree.player)
 		assert player in testSet
@@ -19,6 +19,7 @@ def testAllLinks(p, q, removedPlayers, treeInd = 0):
 
 def test_default():
 	q = Queue()
+	q.maxLinksToCheck = 5
 	# first, add maxLink players. We do not care about the attributes here.
 	p = [Player("Player"+str(i)) for i in range(0, q.maxLinksToCheck*2)]
 
@@ -26,7 +27,7 @@ def test_default():
 	for player in p:
 		q.addPlayer(player)
 
-	testAllLinks(p, q, {})
+	_testAllLinks(p, q, {})
 
 	# remove a random player and check the last player again to make sure the
 	# link was removed
@@ -34,7 +35,7 @@ def test_default():
 	p.remove(removed)
 	q.removePlayer(removed)
 
-	testAllLinks(p, q, {removed})
+	_testAllLinks(p, q, {removed})
 	
 	# obtain potential matchups and print them
 	matches = q.searchForMatches()

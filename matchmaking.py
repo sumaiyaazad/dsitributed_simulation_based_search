@@ -50,7 +50,7 @@ class Ruleset:
 # player in the current queue.
 class Player:
 	# references to MatchTrees with this player as the player value
-	trees = []
+	trees = None
 
 	# keep track of how long the player has been waiting in queue for the most recent ruleset.
 	# Resets if that ruleset's timer has been reached, and is not negative.
@@ -85,6 +85,7 @@ class Player:
 
 	def __init__(self, name):
 		self.name = name
+		self.trees = []
 	#Add additional attribute information below, and to the constructor above.
 
 	#player's name
@@ -96,7 +97,7 @@ class Player:
 
 class MatchTree:
 	# reference to the array of all rulesets
-	rules = []
+	rules = None
 
 	# the index of the rule which this matchtree is using
 	ruleIndex = 0
@@ -105,34 +106,45 @@ class MatchTree:
 
 	# references to other MatchTrees for which, if a link exists between players A and B, then rules.IsValid([A, B]) is true
 	# all links must be older players to this tree's player
-	links = LinkedList()
+	links: LinkedList
 
 	# contents of links but mapped by player to the corresponding index
-	linkMap = dict()
+	linkMap: dict
 
 	# set of a given older player link which IsValid is false. Used for caching when checking a matchup.
 	# Only cache invalid links dependent on static attributes, as there's no mechanisms for removing from the cache-
 	# it's assumed any player that's not valid with another player, remains invalid for the ruleset.
-	invalidParentsMap = set()
+	invalidParentsMap: set
 
 	# When an invalid link is cached, the child being cached is added here so when the child removes all its links,
 	# it can clear its own cached references
-	invalidParentsMapRefs = set()
+	invalidParentsMapRefs: set
 
 	# similar to the invalidParentsMap, the validMatchups stores sets of players which IsValid is true. The validity expected
 	# not to change like invalidParentsMap.
 
-	validMatchups = set()
+	validMatchups: set
 
 	# contains any player which has a validMatchup set containing this player
-	validMatchupsRefs = set()
+	validMatchupsRefs: set
 
 	# for each item in parents, a link exists to this tree's player with the same ruleset. Used to clean up references
 	# if the player leaves the queue. All parents must be newer players to this tree's player
-	parents = []
+	parents: set
 
-	# contents of parents but mapped by player to corresponding index
-	parentMap = dict()
+	# initializes this matchtree
+	def __init__(self, player: Player, rules, rulesetIndex: int):
+		self.player = player
+		self.rules = rules
+		self.ruleIndex = rulesetIndex
+		#need to initialize here because otherwise theyd be treated as static
+		self.links = LinkedList()
+		self.linkMap = dict()
+		self.invalidParentsMap = set()
+		self.invalidParentsMapRefs = set()
+		self.validMatchups = set()
+		self.validMatchupsRefs = set()
+		self.parents = set()
 
 	# retrieves the corresponding ruleset that this matchtree will use
 	def getRuleset(self) -> Ruleset:
@@ -141,23 +153,25 @@ class MatchTree:
 	# removes otherPlayer from own links or parents
 	def removeLink(self, otherPlayer: Player):
 		if(otherPlayer in self.linkMap):
-			self.links.remove_data(self.linkMap.get(otherPlayer))
+			self.links.remove_data(otherPlayer)
 			self.linkMap.pop(otherPlayer)
-		if(otherPlayer in self.parentMap):
-			self.parents.pop(self.parentMap.get(otherPlayer))
-			self.parentMap.pop(otherPlayer)
+			if self in otherPlayer.parents:
+				otherPlayer.parents.remove(self)
+		if(otherPlayer in self.parents):
+			if otherPlayer in self.parents:
+				self.parents.remove(otherPlayer)
+			otherPlayer.links.remove_data(otherPlayer.linkMap.get(self))
+			otherPlayer.linkMap.pop(self)
 
 	# removes self from all parents and all children
 	def removeOwnLinks(self):
 		while self.links:
 			v = self.links.pop_front()
-			v.removeLink(self)
-			self.linkMap.pop(v)
+			self.removeLink(v)
 		
 		while self.parents:
 			v = self.parents.pop()
 			v.removeLink(self)
-			self.parentMap.pop(v)
 
 		while self.invalidParentsMapRefs:
 			v = self.invalidParentsMapRefs.pop()
@@ -180,29 +194,31 @@ class MatchTree:
 
 	# adds a parent to this tree (does not check ruleset, assumed to be called in addLinkIfValid)
 	def addParent(self, otherParent: MatchTree):
-		self.parents.append(otherParent)
-		self.parentMap[otherParent] = len(self.parents)-1
+		self.parents.add(otherParent)
 
 	# adds a link to this tree if it passes the ruleset, returning true if added new
 	def addLinkIfValid(self, otherPlayer: MatchTree) -> bool:
-		if((otherPlayer not in self.linkMap) and self.getRuleset().IsValid({self.player, otherPlayer.player})):
+		if(self != otherPlayer and (otherPlayer not in self.linkMap) and self.getRuleset().IsValid({self.player, otherPlayer.player})):
 			self.links.push_back(otherPlayer)
 			self.linkMap[otherPlayer] = len(self.links)-1
+			otherPlayer.addParent(self)
 			return True
 		return False
 	
-	# starting from the next newer and older player, attempts to establish links up to maxLinks
+	# starting from the next newer and older player, attempts to establish links up to maxLinks/2 on each side
 	def searchForLinks(self, maxLinks):
-		self.searchForNewLinks(maxLinks, self.player.olderPlayer)
-		self.searchForNewLinks(-maxLinks, self.player.newerPlayer)
+		self.searchForNewLinks(maxLinks//2, self.player.olderPlayer)
+		self.searchForNewLinks(-maxLinks//2, self.player.newerPlayer)
 
 	# starting from the specified player, find up to count links (if negative, search previous players)
 	# returns a list of players which it has made new links with
+	# if count positive, searching for older players -> add links to older players
 	def searchForNewLinks(self, count, startingPlayer: Player):
 		tmpPlayer = startingPlayer
 		newLinks = []
 		while(count != 0 and tmpPlayer != None):
-			if(self.addLinkIfValid(tmpPlayer.trees[self.ruleIndex])):
+			if((count < 0 and self.addLinkIfValid(tmpPlayer.trees[self.ruleIndex])) or 
+	  (count > 0 and tmpPlayer.trees[self.ruleIndex].addLinkIfValid(self))):
 				newLinks.append(tmpPlayer)
 			tmpPlayer = tmpPlayer.olderPlayer if count > 0 else tmpPlayer.newerPlayer
 			count -= 1 if count > 0 else -1
@@ -250,12 +266,6 @@ class MatchTree:
 					ret.union(tmp)
 		return ret	
 
-	# initializes this matchtree
-	def __init__(self, player: Player, rules, rulesetIndex: int):
-		self.player = player
-		self.rules = rules
-		self.ruleIndex = rulesetIndex
-
 	def __del__(self):
 		self.removeOwnLinks()
 
@@ -292,12 +302,8 @@ class Queue:
 		player.clearTrees()
 		if(player.olderPlayer is not None):
 			player.olderPlayer.newerPlayer = player.newerPlayer
-			#older players don't have to update any of their links
-
-		if(player.newerPlayer is not None):
-			player.newerPlayer.olderPlayer = player.olderPlayer
-			playerCheckIndex = removedIndex - self.maxLinksToCheck
-			playerUpdate = player.newerPlayer
+			playerCheckIndex = removedIndex + self.maxLinksToCheck
+			playerUpdate = player.olderPlayer
 			count = 0
 			# update links
 			while(playerUpdate is not None and count < self.maxLinksToCheck):
@@ -305,7 +311,11 @@ class Queue:
 					playerUpdate.updateTrees(1, self.players[playerCheckIndex])
 				playerCheckIndex -= 1
 				count += 1
-				playerUpdate = playerUpdate.newerPlayer
+				playerUpdate = playerUpdate.olderPlayer
+			
+		#newer players don't have to update any of their links
+		if(player.newerPlayer is not None):
+			player.newerPlayer.olderPlayer = player.olderPlayer
 
 		self.players.remove(player)
 
