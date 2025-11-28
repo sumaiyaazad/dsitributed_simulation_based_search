@@ -5,6 +5,7 @@ from scipy.spatial.distance import pdist, squareform
 from common import encode_player, read_player_attrs
 import redis
 import json
+from z_score import qualify_match
 import pandas as pd
 
 
@@ -35,5 +36,5 @@ if __name__ == "__main__":
     for message in pubsub.listen():
         if message["type"] == "message":
             msg = json.loads(message['data'])
-            list_of_players = player_lookup(msg, players_df)
-            # qualify_match(list_of_players=list_of_players)
+            z_score, stds = qualify_match(msg, players_df)
+            print(f"Match {msg} has z-score {z_score} with stds {stds}")
