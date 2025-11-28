@@ -22,8 +22,9 @@ def test_default():
 	q = Queue()
 	q.rulesets[0].minPlayers = 8
 	q.maxLinksToCheck = 20
+	players = 100
 	# first, add maxLink players. We do not care about the attributes here.
-	p = [Player("Player"+str(i)) for i in range(0, q.maxLinksToCheck*2)]
+	p = [Player("Player"+str(i)) for i in range(0, players)]
 
 	# add the players into the queue
 	for player in p:
@@ -44,14 +45,17 @@ def test_default():
 	x = 0
 	while len(p) > minPlayers:
 		x += 1
+		totalMatches = 0
 		print("Search", x)
 		# obtain potential matchups and print them
 		matches = q.searchForMatches()
 		for k in matches:
 			v = matches[k]
+			
 			print("Player " + k.name + ": ")
 			for t in range(len(v)):
 				print("Tree", t, ": ", len(v[t]), "matches")
+				totalMatches += len(v[t])
 				'''for m in v[t]:
 					print("{")
 					for l in m:
@@ -59,6 +63,11 @@ def test_default():
 					print("},", end=" ")
 				print("],")'''
 			print()
+
+		if(totalMatches == 0 and len(p) >= minPlayers):
+			print("No matches found! Re-searching all players")
+			for pl in p:
+				pl.updateTrees(q.maxLinksToCheck, pl.olderPlayer)
 
 		print("Getting best matches... (and removing)")
 

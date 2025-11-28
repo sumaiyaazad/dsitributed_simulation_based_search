@@ -16,6 +16,10 @@ class Ruleset:
 	# if zero, the next ruleset is applied immediately after this one fails to make a match.
 	timer = -1
 
+	# after this many ticks, trees for this ruleset recalculate their links, to avoid bugs
+	# from removing elements
+	treeReSearchTimer = 60
+
 	# IsValid returns false if any player in playerList cannot produce
 	# a valid match with this ruleset. By default, returns true for any
 	# list at most the size of maxPlayers.
@@ -107,6 +111,9 @@ class MatchTree:
 
 	# the index of the rule which this matchtree is using
 	ruleIndex = 0
+
+	# ticks until refresh
+	refreshTimer = 0
 
 	player : Player
 
@@ -398,6 +405,11 @@ class Queue:
 					p.rulesetNum += 1
 					p.timer = p.trees[p.rulesetNum].getRuleset().timer
 					p.getCurrentTree().searchForLinks(self.maxLinksToCheck)
+			for t in p.trees:
+				t.refreshTimer -= 1
+				if t.refreshTimer <= 0:
+					t.refreshTimer = t.getRuleset().treeReSearchTimer
+					t.searchForLinks(self.maxLinksToCheck)
 
 	def __del__(self):
 		for p in self.players:
