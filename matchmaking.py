@@ -38,6 +38,12 @@ class Ruleset:
 			return -1
 		return 0
 	
+	def getMinPlayers(self) -> int:
+		return self.minPlayers
+	
+	def getMaxPlayers(self) -> int:
+		return self.maxPlayers
+	
 	# Note about IsValid vs. IsMatch: if any player list IsMatch, then it is also IsValid;
 	# if any player list is not IsValid, then it is also not IsMatch;
 	# It is valid for a player list to be IsValid and not IsMatch. To avoid infinite recursion,
@@ -189,7 +195,9 @@ class MatchTree:
 
 		while self.validMatchups:
 			v = self.validMatchups.pop()
-			v.validMatchupsRefs.remove(self)
+			for m in v:
+				if self in m.trees[self.ruleIndex].validMatchupsRefs:
+					m.trees[self.ruleIndex].validMatchupsRefs.remove(self)
 
 
 	# adds a parent to this tree (does not check ruleset, assumed to be called in addLinkIfValid)
@@ -232,7 +240,8 @@ class MatchTree:
 	# Returns a list of all valid matchups such that IsMatch is true.
 	# otherPlayers is a list of players up the tree (parent + parents of parents) which
 	# IsValid(otherPlayers) is true.
-	def findMatchups(self, depth = 10, otherPlayers = {}) -> set:
+	# maxMatches sets a limit to the number of valid matcups to find for this tree.
+	def findMatchups(self, depth = 10, otherPlayers = {}, maxMatches = 10) -> set:
 		newSet = otherPlayers.copy()
 		newSet.add(self.player)
 		failedMatchup = False
@@ -252,18 +261,21 @@ class MatchTree:
 				return set()
 		
 		ret = set()
-		if self.getRuleset().IsValid(newSet):
-			self.validMatchups.add(newSetFrozen)
-			for p in otherPlayers:
-				p.trees[self.ruleIndex].validMatchupsRefs.add(self)
+		if newSetFrozen in self.validMatchups or self.getRuleset().IsValid(newSet):
+			if newSetFrozen not in self.validMatchups:
+				self.validMatchups.add(newSetFrozen)
+				for p in otherPlayers:
+					p.trees[self.ruleIndex].validMatchupsRefs.add(self)
 			
 			
 			if(self.getRuleset().IsMatch(newSet)):
-				ret.add(newSet)
-			if(depth > 0):
+				ret.add(newSetFrozen)
+			if(depth > 0 and depth + len(otherPlayers) >= self.getRuleset().getMinPlayers()
+	  			 and depth + len(otherPlayers) <= self.getRuleset().getMaxPlayers()
+				 and maxMatches > 0):
 				for l in self.links:
-					tmp = l.findMatchups(depth-1, newSet)
-					ret.union(tmp)
+					tmp = l.findMatchups(depth-1, newSet, maxMatches - len(ret))
+					ret = ret.union(tmp)
 		return ret	
 
 	def __del__(self):
@@ -274,14 +286,19 @@ class MatchTree:
 # The master class which keeps track of players within itself, as well as establishing matches.
 class Queue:
 	# players in queue, with the last player being the newest
-	players = []
-	playerMap = dict()
+	players = None
+	playerMap: dict
 
 	# rulesets which to apply to the players. All rulesets are applied in this order to each player.
-	rulesets = [Ruleset()]
+	rulesets = None
 
 	#when performing a link search, sets the max amount of links which to create on either side of a player
 	maxLinksToCheck = 100
+
+	def __init__(self, rules = [Ruleset()]):
+		self.players = []
+		self.playerMap = dict()
+		self.rulesets = rules
 
 	# adds a player into the queue at the end
 	def addPlayer(self, player: Player):
@@ -293,7 +310,9 @@ class Queue:
 			self.playerMap[player] = len(self.players)-1
 			for m in range(0, len(self.rulesets)):
 				player.trees.append(MatchTree(player, self.rulesets, m))
+			player.rulesetNum = 0
 			player.getCurrentTree().searchForLinks(self.maxLinksToCheck)
+			player.timer = player.getCurrentTree().getRuleset().timer
 		
 
 	# removes a player from the queue and cleans up and re-searches as necessary
@@ -337,7 +356,37 @@ class Queue:
 	# given the output of searchForMatches, retrieve
 	# a list of best matches indicated by the player order
 	# and priority. No matchups returned will consist of duplicate players.
+	# Matches will be mapped to player; if a player is not present, they do not have a match.
 	# def getBestMatches(self)
+	def getBestMatches(self, matchups) -> dict:
+		ret = dict()
+		
+		for k in matchups:
+			v = matchups[k]
+			prio = -1
+			best = None
+			rule = None
+			#print("Player " + k.name + ": ")
+			if k.name not in ret:
+				for t in range(len(v)):
+					#print("Tree", t, ": [")
+					for m in v[t]:
+						alreadyIn = False
+						for x in m:
+							if x in ret.keys():
+								alreadyIn = True
+								break
+						if not alreadyIn:
+							mp = k.trees[t].getRuleset().Priority(m)
+							if best is None or mp > prio:
+								best = m
+								mp = prio
+								rule = k.trees[t].getRuleset()
+				if best is not None:
+					for pl in best:
+						ret[pl] = (prio, rule, best)
+		return ret
+						
 	
 	#decrements all player timers and updates their ruleset num as needed
 	def doTick(self, delta=1):
@@ -347,7 +396,7 @@ class Queue:
 					p.timer -= delta
 				else:
 					p.rulesetNum += 1
-					p.timer = p.trees.getRuleset().timer
+					p.timer = p.trees[p.rulesetNum].getRuleset().timer
 					p.getCurrentTree().searchForLinks(self.maxLinksToCheck)
 
 	def __del__(self):

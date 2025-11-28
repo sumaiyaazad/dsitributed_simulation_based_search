@@ -13,13 +13,15 @@ def _testAllLinks(p, q, removedPlayers, treeInd = 0):
 			assert tree.player not in removedPlayers
 			assert tree.player not in resultingPlayers
 			resultingPlayers.append(tree.player)
-			testSet.remove(tree.player)
+			if tree.player in testSet:
+				testSet.remove(tree.player)
 		assert player in testSet
 		assert len(resultingPlayers) < q.maxLinksToCheck
 
 def test_default():
 	q = Queue()
-	q.maxLinksToCheck = 5
+	q.rulesets[0].minPlayers = 8
+	q.maxLinksToCheck = 20
 	# first, add maxLink players. We do not care about the attributes here.
 	p = [Player("Player"+str(i)) for i in range(0, q.maxLinksToCheck*2)]
 
@@ -37,17 +39,48 @@ def test_default():
 
 	_testAllLinks(p, q, {removed})
 	
-	# obtain potential matchups and print them
-	matches = q.searchForMatches()
-	for k in matches:
-		v = matches[k]
-		print("Player " + k.name + ": ")
-		for m in v:
-			print("{")
-			for l in m:
-				print(l.name)
-			print("}, ")
-		print("\n")
+	minPlayers = 8
+
+	x = 0
+	while len(p) > minPlayers:
+		x += 1
+		print("Search", x)
+		# obtain potential matchups and print them
+		matches = q.searchForMatches()
+		for k in matches:
+			v = matches[k]
+			print("Player " + k.name + ": ")
+			for t in range(len(v)):
+				print("Tree", t, ": ", len(v[t]), "matches")
+				'''for m in v[t]:
+					print("{")
+					for l in m:
+						print(l.name, end=" ")
+					print("},", end=" ")
+				print("],")'''
+			print()
+
+		print("Getting best matches... (and removing)")
+
+		best = q.getBestMatches(matches)
+
+		for k in best:
+			print("Player " + k.name + ": ", end="")
+			rule, prio, pll = best[k]
+			for pl in pll:
+				print(pl.name, end=" ")
+				if pl in p:
+					p.remove(pl)
+					q.removePlayer(pl)
+			print()
+
+		print("\n************\nticking and re-searching\n************\n")
+
+		q.doTick()
+
+	print("Printing remaining players")
+	for pl in p:
+		print(pl.name)
 
 	# test cleanup
 	del q
