@@ -2,21 +2,21 @@ import numpy as np
 import csv
 from scipy.stats import chi
 
-# Number of players to generate
+REGIONS = ["NA", "EU", "AS", "SA", "AF", "OC"]
+
+# Number of players to generate for the CSV
 NUM_PLAYERS = 50000
 
 # Degrees of freedom for chi distribution
 SKILL_DF = 5
 LATENCY_DF = 3
 
-# Regions to pick from
-REGIONS = ["NA", "EU", "AS", "SA", "AF", "OC"]
-
 # Scale factors
 SKILL_SCALE = 15
 LATENCY_SCALE = 10
 PLAYTIME_MEAN = 300
 PLAYTIME_STD = 120
+
 
 def compute_rank(skill):
     if skill > 95:
@@ -33,37 +33,85 @@ def compute_rank(skill):
         return "Bronze"
 
 
-players = []
+def generate_players(num_players: int = NUM_PLAYERS, seed: int | None = None):
+    if seed is not None:
+        np.random.seed(seed)
 
-for player_id in range(1, NUM_PLAYERS + 1):
+    players = []
+    for player_id in range(1, num_players + 1):
+        raw_skill = chi.rvs(SKILL_DF)
+        skill_level = min(100, round(raw_skill * SKILL_SCALE))
 
-    # Generate skill using SciPy chi distribution
-    raw_skill = chi.rvs(SKILL_DF)
-    skill_level = min(100, round(raw_skill * SKILL_SCALE))
+        raw_latency = chi.rvs(LATENCY_DF)
+        latency = max(5, round(raw_latency * LATENCY_SCALE))
 
-    # Generate latency using SciPy chi distribution
-    raw_latency = chi.rvs(LATENCY_DF)
-    latency = max(5, round(raw_latency * LATENCY_SCALE))
+        region = np.random.choice(REGIONS)
+        rank = compute_rank(skill_level)
 
-    # Choose player region
-    region = np.random.choice(REGIONS)
+        playtime = max(0, int(np.random.normal(PLAYTIME_MEAN, PLAYTIME_STD)))
 
-    # Compute rank from skill
-    rank = compute_rank(skill_level)
+        players.append([
+            player_id,
+            skill_level,
+            latency,
+            region,
+            rank,
+            playtime,
+        ])
 
-    # Generate playtime from normal distribution
-    playtime = max(0, int(np.random.normal(PLAYTIME_MEAN, PLAYTIME_STD)))
+    return players
 
-    players.append([
-        player_id, skill_level, latency, region, rank, playtime
-    ])
 
-# Write CSV
-output_file = "./input/player_attributes.csv"
+def write_players_csv(players, output_file: str = "./input/player_attributes.csv"):
+    with open(output_file, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["player_id", "skill_level", "latency_ms", "region", "rank", "playtime_hours"])
+        writer.writerows(players)
 
-with open(output_file, "w", newline="") as f:
-    writer = csv.writer(f)
-    writer.writerow(["player_id", "skill_level", "latency_ms", "region", "rank", "playtime_hours"])
-    writer.writerows(players)
+    print(f"CSV file '{output_file}' generated with {len(players)} players.")
 
-print(f"CSV file '{output_file}' generated with {NUM_PLAYERS} players.")
+
+def generate_workload_seed_indices(
+    players_csv: str,
+    num_requests: int = 100000,
+    hot_player_bias: float = 1.5,
+    seed: int | None = None,
+):
+    """
+    Generate a continuous stream of seed-player indices for benchmarking.
+
+    - Players with higher playtime_hours appear more often (approx "more online").
+    - hot_player_bias > 1.0 makes the distribution more skewed toward heavy players.
+    - Returns a list of indices 0..N-1 (index into the CSV order).
+    """
+    import pandas as pd
+
+    if seed is not None:
+        np.random.seed(seed)
+
+    df = pd.read_csv(players_csv)
+    playtime = df["playtime_hours"].to_numpy(dtype=float)
+
+    # Avoid zero weights
+    playtime = playtime + 1.0
+
+    # Apply bias
+    weights = playtime ** hot_player_bias
+    weights = weights / weights.sum()
+
+    indices = np.arange(len(df))
+    workload = np.random.choice(indices, size=num_requests, replace=True, p=weights)
+    return workload.tolist()
+
+
+if __name__ == "__main__":
+    # 1) Generate CSV if needed
+    players = generate_players()
+    write_players_csv(players)
+
+    # 2) Example workload usage
+    workload = generate_workload_seed_indices("./input/player_attributes.csv",
+                                              num_requests=50_000,
+                                              hot_player_bias=1.5)
+    print("Example workload:", workload[:20])
+

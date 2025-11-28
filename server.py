@@ -30,7 +30,7 @@ class PlayerService(messages_pb2_grpc.MatchmakerServiceServicer):
 
         query = np.ascontiguousarray([list(request.values)], dtype=np.float32)
         #grab 30 nearest neighbors since many will be offline or busy
-        dists, idxs = search_faiss_index(self.index, query, num_neighbor=30)
+        dists, idxs = search_faiss_index(self.index, query, 30)
         ids = [int(x) for x in idxs.flatten().tolist() if int(x) >= 0]
 
         # filter neighbors by online status to make sure they are available
