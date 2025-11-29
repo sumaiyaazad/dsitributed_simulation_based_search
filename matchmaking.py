@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from utility import LinkedList
 
+from threading import Thread, Lock
+
 # Ruleset: a class with by default two functions: IsValid and IsMatch.
 # Extend in a subclass for additional rulesets, such as to implement skill based algorithms.
 class Ruleset:
@@ -145,6 +147,8 @@ class MatchTree:
 	# if the player leaves the queue. All parents must be newer players to this tree's player
 	parents: set
 
+	lock: Lock
+
 	# initializes this matchtree
 	def __init__(self, player: Player, rules, rulesetIndex: int):
 		self.player = player
@@ -158,6 +162,7 @@ class MatchTree:
 		self.validMatchups = set()
 		self.validMatchupsRefs = set()
 		self.parents = set()
+		self.lock = Lock()
 
 	# retrieves the corresponding ruleset that this matchtree will use
 	def getRuleset(self) -> Ruleset:
@@ -247,13 +252,14 @@ class MatchTree:
 	# Returns a list of all valid matchups such that IsMatch is true.
 	# otherPlayers is a list of players up the tree (parent + parents of parents) which
 	# IsValid(otherPlayers) is true.
-	# maxMatches sets a limit to the number of valid matcups to find for this tree.
+	# maxMatches sets a limit to the number of valid matcups to find for this tree (this restricts further searches, but not how many total searches may appear).
 	def findMatchups(self, depth = 10, otherPlayers = {}, maxMatches = 10) -> set:
 		newSet = otherPlayers.copy()
 		newSet.add(self.player)
 		failedMatchup = False
 		newSetFrozen = frozenset(newSet)
 
+		self.lock.acquire()
 		# if we've already encountered this set of otherPlayers, skip checks
 		if newSetFrozen not in self.validMatchups:
 			# check if this player is incompatible with any players specified in otherPlayers
@@ -265,8 +271,9 @@ class MatchTree:
 					p.trees[self.ruleIndex].invalidParentsMapRef.add(self)
 					failedMatchup = True
 			if failedMatchup:
+				self.lock.release()
 				return set()
-		
+		unlocked = False
 		ret = set()
 		if newSetFrozen in self.validMatchups or self.getRuleset().IsValid(newSet):
 			if newSetFrozen not in self.validMatchups:
@@ -274,7 +281,8 @@ class MatchTree:
 				for p in otherPlayers:
 					p.trees[self.ruleIndex].validMatchupsRefs.add(self)
 			
-			
+			unlocked = True
+			self.lock.release()
 			if(self.getRuleset().IsMatch(newSet)):
 				ret.add(newSetFrozen)
 			if(depth > 0 and depth + len(otherPlayers) >= self.getRuleset().getMinPlayers()
@@ -283,6 +291,8 @@ class MatchTree:
 				for l in self.links:
 					tmp = l.findMatchups(depth-1, newSet, maxMatches - len(ret))
 					ret = ret.union(tmp)
+		if not unlocked:
+			self.lock.release()
 		return ret	
 
 	def __del__(self):
@@ -347,17 +357,37 @@ class Queue:
 
 	# performs one search for matches, returning a dict of players to potential matchups, sorted by ruleset.
 	# Use the player queue order additionally to matchmake players waiting longer.
-	def searchForMatches(self, depth=10) -> dict:
+	def searchForMatches(self, ret = dict(), depth=10, startPlayer = 0, maxPlayers = -1) -> dict:
 		#maps player to all available matchups
-		ret = dict()
-		for p in self.players:
-
+		for i in range(startPlayer, maxPlayers + startPlayer if maxPlayers > 0 else len(self.players)):
+			if i >= len(self.players):
+				return ret
+			p = self.players[i]
 			#maps ruleset to matchups
 			matches = []
-			for i in range(0, p.rulesetNum+1):
-				tmp = p.trees[i].findMatchups(depth, set())
+			for j in range(0, p.rulesetNum+1):
+				tmp = p.trees[j].findMatchups(depth, set())
 				matches.append(tmp)
 			ret[p] = matches
+		return ret
+	
+	# performs one search for matches, multithreaded
+	def searchForMatchesMultithread(self, depth=10) -> dict:
+		dicts = []
+		ret = dict()
+		threads = []
+		for i in range(0, len(self.players), self.maxLinksToCheck):
+			if(i < len(self.players)):
+				dicts.append(dict())
+		for d in range(0, len(dicts)):
+			threads.append(Thread(target=self.searchForMatches, args=(dicts[d], depth, d*self.maxLinksToCheck, self.maxLinksToCheck)))
+		for t in threads:
+			t.start()
+		for t in threads:
+			t.join()
+		for d in dicts:
+			for d2 in d:
+				ret[d2] = d[d2]
 		return ret
 	
 	# given the output of searchForMatches, retrieve

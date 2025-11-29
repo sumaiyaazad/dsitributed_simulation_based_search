@@ -22,7 +22,7 @@ def test_default():
 	q = Queue()
 	q.rulesets[0].minPlayers = 8
 	q.maxLinksToCheck = 20
-	players = 100
+	players = 1000
 	# first, add maxLink players. We do not care about the attributes here.
 	p = [Player("Player"+str(i)) for i in range(0, players)]
 
@@ -48,7 +48,7 @@ def test_default():
 		totalMatches = 0
 		print("Search", x)
 		# obtain potential matchups and print them
-		matches = q.searchForMatches()
+		matches = q.searchForMatchesMultithread()
 		for k in matches:
 			v = matches[k]
 			
