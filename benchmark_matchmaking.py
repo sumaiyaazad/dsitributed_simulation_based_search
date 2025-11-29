@@ -94,6 +94,12 @@ def evaluate_matches(matches, players_df: pd.DataFrame):
     - avg_latency_std:     average std-dev of latency_ms within a match
     - avg_regions_per_match: average number of distinct regions in a match
     - avg_playtime_std:    average std-dev of playtime_hours within a match
+    - avg_skill_z:        average z-score of skill_level in matches
+    - avg_rank_z:         average z-score of rank index in matches
+    - avg_latency_z:      average z-score of latency_ms in matches
+    - avg_playtime_z:     average z-score of playtime_hours in matches 
+    - avg_region_z:       average z-score of regions in matches
+    - avg_z_score:         average z-score of matches
     """
     if not matches:
         return {
@@ -111,12 +117,17 @@ def evaluate_matches(matches, players_df: pd.DataFrame):
     latency_stds = []
     regions_per_match = []
     playtime_stds = []
+    skill_z = []
+    rank_z = []
+    latency_z = []
+    playtime_z = []
+    region_z = []
     z_scores = []
 
     for match in matches:
         m = np.array(match, dtype=int)
         
-        z_score, stds = qualify_match(m, players_df)
+        z_score, attribute_scores, stds = qualify_match(m, players_df)
 
         skill_stds.append(stds[0])
         rank_stds.append(stds[3])
@@ -125,6 +136,12 @@ def evaluate_matches(matches, players_df: pd.DataFrame):
         playtime_stds.append(stds[2])
         z_scores.append(z_score)
 
+        skill_z.append(attribute_scores[0])
+        latency_z.append(attribute_scores[1])
+        playtime_z.append(attribute_scores[2])
+        rank_z.append(attribute_scores[3])
+        region_z.append(attribute_scores[4])
+
     metrics = {
         "num_matches": len(matches),
         "avg_skill_std": float(np.mean(skill_stds)),
@@ -132,6 +149,11 @@ def evaluate_matches(matches, players_df: pd.DataFrame):
         "avg_latency_std": float(np.mean(latency_stds)),
         "avg_regions_per_match": float(np.mean(regions_per_match)),
         "avg_playtime_std": float(np.mean(playtime_stds)),
+        "avg_skill_z": float(np.mean(skill_z)),
+        "avg_rank_z": float(np.mean(rank_z)),
+        "avg_latency_z": float(np.mean(latency_z)),
+        "avg_playtime_z": float(np.mean(playtime_z)),
+        "avg_region_z": float(np.mean(region_z)),
         "avg_z_score": float(np.mean(z_scores)),
     }
     return metrics
@@ -146,6 +168,11 @@ def print_metrics(label, metrics, elapsed):
     print(f"Avg latency std in match:  {metrics['avg_latency_std']}")
     print(f"Avg regions per match:     {metrics['avg_regions_per_match']}")
     print(f"Avg playtime std in match: {metrics.get('avg_playtime_std')}")
+    print(f"Avg skill z-score:         {metrics.get('avg_skill_z')}")
+    print(f"Avg rank z-score:          {metrics.get('avg_rank_z')}")
+    print(f"Avg latency z-score:       {metrics.get('avg_latency_z')}")
+    print(f"Avg playtime z-score:      {metrics.get('avg_playtime_z')}")
+    print(f"Avg region z-score:        {metrics.get('avg_region_z')}")
     print(f"Avg z-score per match:     {metrics.get('avg_z_score')}")
 
 
@@ -157,10 +184,19 @@ if __name__ == "__main__":
     players_df = pd.read_csv(players_csv, na_filter=False)
     num_players = len(csv_players)
 
+    num_of_requests = 10_000
+
     # Generate workload (this is the "continuous queue" driving the system)
+    fifo_workload = generate_workload_seed_indices(
+        players_csv,
+        num_requests=num_of_requests * 10,   # how long your simulation runs
+        hot_player_bias=1.5,
+        seed=42,
+    )
+
     workload = generate_workload_seed_indices(
         players_csv,
-        num_requests=100,   # how long your simulation runs
+        num_requests=num_of_requests,   # how long your simulation runs
         hot_player_bias=1.5,
         seed=42,
     )
@@ -172,7 +208,7 @@ if __name__ == "__main__":
     # --------- 1) FIFO baseline ---------
     start = time.perf_counter()
     fifo_matches = form_matches_fifo(
-        workload,
+        fifo_workload,
         num_players=num_players,
         players_per_match=players_per_match,
         max_matches=target_matches,

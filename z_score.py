@@ -69,8 +69,9 @@ def qualify_match(match, players_df):
 
     zw, stds = match_z_score(skills, lats, playtimes, num_ranks, average_region(regions))
     player_z_scores = np.abs(zw).sum(axis=1)
+    attribute_scores = np.abs(zw).mean(axis=0)
     score = float(player_z_scores.mean()) if len(player_z_scores) > 0 else 0.0,
-    return  score, stds
+    return  score, attribute_scores, stds
 
 def match_z_score(skills, latencies, playtimes, ranks, regions):
     
