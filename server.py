@@ -1,6 +1,9 @@
 import numpy as np
 import grpc
 from concurrent import futures
+import threading
+import time
+import random
 
 import messages_pb2
 import messages_pb2_grpc
@@ -118,6 +121,60 @@ class ServerShard:
             f"online={len(self.online_indices)}, port={self.port_no}"
         )
 
+    def _online_fluctuation_loop(self, interval_secs=5, change_fraction=0.05):
+        """
+        Periodically flip a fraction of players between online and offline.
+        Busy players are never flipped.
+        """
+        n = len(self.all_players)
+        if n == 0:
+            return
+        
+        while True:
+            time.sleep(interval_secs)
+
+            # current online indices
+            current_online = list(self.online_indices)
+
+            # offline candidates = all - online - busy
+            all_indices = set(range(n))
+            offline_candidates = list(all_indices - self.online_indices - self.busy_indices)
+
+            if not current_online and not offline_candidates:
+                continue
+
+            # how many to flip in each direction
+            num_flip_offline = 0
+            if current_online:
+                num_flip_offline = min(
+                    max(1, int(change_fraction * len(current_online))),
+                    len(current_online),
+                )
+
+            num_flip_online = 0
+            if offline_candidates:
+                num_flip_online = min(
+                    max(1, int(change_fraction * len(offline_candidates))),
+                    len(offline_candidates),
+                )
+
+            # Online -> offline (but never touch busy)
+            if num_flip_offline > 0:
+                for idx in random.sample(current_online, num_flip_offline):
+                    if idx in self.busy_indices:
+                        continue
+                    self.online_indices.discard(idx)
+
+            # Offline -> online
+            if num_flip_online > 0:
+                for idx in random.sample(offline_candidates, num_flip_online):
+                    self.online_indices.add(idx)
+
+            print(
+                f"[{self.zone_name}] reshuffle: online={len(self.online_indices)}, "
+                f"busy={len(self.busy_indices)}"
+            )
+
     def serve(self):
         self._load_data()
         assert self.index is not None
@@ -129,6 +186,11 @@ class ServerShard:
         _server.add_insecure_port(f"[::]:{self.port_no}")
         _server.start()
         print(f"Server for zone {self.zone_name} started on port {self.port_no}")
+
+        # start background reshuffle of online players
+        t = threading.Thread(target=self._online_fluctuation_loop, daemon=True)
+        t.start()
+
         _server.wait_for_termination()
 
 if __name__ == "__main__":
