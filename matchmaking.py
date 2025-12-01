@@ -96,8 +96,8 @@ class Player:
 		return self.trees[self.rulesetNum]
 
 	def getTotalTimeWaiting(self) -> int:
-		val = self.timer
-		for t in range(0, self.rulesetNum+1):
+		val = self.getCurrentTree().getRuleset().timer - self.timer if self.getCurrentTree().getRuleset().timer >= 0 else 0
+		for t in range(0, self.rulesetNum):
 			time = self.trees[t].getRuleset().timer
 			if time >= 0:
 				val += time
