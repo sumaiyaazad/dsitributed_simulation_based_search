@@ -81,6 +81,14 @@ class Player:
 	def getCurrentTree(self) -> MatchTree:
 		return self.trees[self.rulesetNum]
 
+	def getTotalTimeWaiting(self) -> int:
+		val = self.timer
+		for t in range(0, self.rulesetNum+1):
+			time = self.trees[t].getRuleset().timer
+			if time >= 0:
+				val += time
+		return val
+
 	#Add additional attribute information below.
 
 # MatchTree: a class containing a player, a reference to a ruleset,
