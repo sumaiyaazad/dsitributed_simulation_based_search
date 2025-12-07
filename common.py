@@ -54,8 +54,7 @@ def encode_player(player):
 def create_faiss_index(vectors):
     dim = vectors.shape[1]
     index = faiss.IndexFlatL2(dim)
-    index.add(vectors)
-
+    index.add(vectors.astype(np.float32))
     print("FAISS index size:", index.ntotal)
     return index
 

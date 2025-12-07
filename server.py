@@ -5,6 +5,9 @@ import time
 import threading
 import os
 from concurrent import futures
+import threading
+import time
+import random
 
 import messages_pb2
 import messages_pb2_grpc
@@ -16,47 +19,61 @@ RANKS = ["Bronze", "Silver", "Gold", "Diamond", "Master", "Grandmaster"]
 server_id = 0
 
 class PlayerService(messages_pb2_grpc.MatchmakerServiceServicer):
-
-    def __init__(self, index, online_players, offline_players, busy_players, lock):
+    def __init__(self, shard):
         super().__init__()
-        self.index = index
-        self.online_players = online_players   #set of online player_ids
-        self.busy_players = busy_players       #set of busy player_ids
-        self.offline_players = offline_players #set of offline player_ids
-        self.lock = lock
+        self.shard = shard
 
     def RequestPlayers(self, request, context):
-        print("Server received:", list(request.values))
+        # request.values: 1D list of floats
+        query_vec = np.array(request.values, dtype=np.float32).reshape(1, -1)
+        print("Server received query vector with shape", query_vec.shape)
 
-        query = np.ascontiguousarray([list(request.values)], dtype=np.float32)
-        #grab 30 nearest neighbors since many will be offline or busy
-        dists, idxs = search_faiss_index(self.index, query, 30)
-        ids = [int(x) for x in idxs.flatten().tolist() if int(x) >= 0]
+        # Ask FAISS for a large-ish number of neighbors to allow for filtering
+        NUM_NEIGHBORS = 100
+        dists, idxs = search_faiss_index(self.shard.index, query_vec, num_neighbor=NUM_NEIGHBORS)
 
-        # filter neighbors by online status to make sure they are available
-        result = []
-        with self.lock:
-            for pid in ids:
-                if pid not in self.busy_players:
-                    result.append(pid)
-                    self.busy_players.add(pid)  #mark player as busy
-                if len(result) >= 10:
-                    break
+        chosen_ids = []
+        MAX_RETURN = 10  # how many we give back to the coordinator
 
-        return messages_pb2.PlayerList(playersIds=result)
+        for idx in idxs[0]:
+            idx = int(idx)
+            # skip if not online
+            if idx not in self.shard.online_indices:
+                continue
+            # skip if in a match
+            if idx in self.shard.busy_indices:
+                continue
+            # accept this player
+            pid = int(self.shard.all_player_ids[idx])
+            chosen_ids.append(pid)
+            if len(chosen_ids) >= MAX_RETURN:
+                break
+
+        print("Nearest eligible neighbor player_ids:", chosen_ids)
+        return messages_pb2.PlayerList(playersIds=chosen_ids)
     
     def ConfirmToMatch(self, request, context):
-        print("Server received confirmation for player ID:", request.playerId)
-        with self.lock:
-            if request.playerId in self.busy_players:
-                #for now make the player go offline when match is found
-                self.busy_players.remove(request.playerId)
-                # self.offline_players.add(request.playerId)
-                # self.online_players.remove(request.playerId)
-        return messages_pb2.Confirmation(status="Confirmed")
+        """
+        Coordinator calls this AFTER deciding a match, to lock those players
+        so they cannot be reused for another match.
+        """
+        locked = 0
+        for pid in request.playersIds:
+            idx = self.shard.id_to_index.get(pid)
+            if idx is None:
+                continue
+            # mark busy
+            self.shard.busy_indices.add(idx)
+            # ensure they are no longer considered online
+            if idx in self.shard.online_indices:
+                self.shard.online_indices.discard(idx)
+            locked += 1
+
+        print(f"Locked {locked} players as busy for a match.")
+        return messages_pb2.Status(isOK=True)
 
 class ServerShard:
-    def __init__(self, server_id, datafile, port_no=50051):
+    def __init__(self, zone_name, datafile, port_no=50051, online_fraction=0.5):
        self.port_no = port_no
        self.server_id = server_id
        self._datafile = datafile
@@ -65,6 +82,16 @@ class ServerShard:
        self.offline_players = set() #set containing player_ids of offline players, should be inverse of online_players
        self.lock = threading.Lock()
        self.index = None
+
+       # All players in this region
+       self.all_players = []        # list of dicts
+       self.all_player_ids = []     # list[int]
+       self.id_to_index = {}        # player_id -> global index in all_players
+
+       # Online and busy sets (indices into all_players)
+       self.online_indices = set()  # eligible to be matched
+       self.busy_indices = set()    # currently in a match
+
     
     def _load_data(self):
         csv_players = read_player_attrs(self._datafile)
@@ -120,9 +147,75 @@ class ServerShard:
         else:	
             return "UNKNOWN"
 
+        # 4. Choose a random subset as "online"
+        num_online = max(1, int(num_total * self.online_fraction))
+        chosen_indices = np.random.choice(num_total, size=num_online, replace=False)
+        self.online_indices = set(int(i) for i in chosen_indices)
+        self.busy_indices = set()
+
+        print(
+            f"[{self.zone_name}] total players={num_total}, "
+            f"online={len(self.online_indices)}, port={self.port_no}"
+        )
+
+    def _online_fluctuation_loop(self, interval_secs=5, change_fraction=0.05):
+        """
+        Periodically flip a fraction of players between online and offline.
+        Busy players are never flipped.
+        """
+        n = len(self.all_players)
+        if n == 0:
+            return
+        
+        while True:
+            time.sleep(interval_secs)
+
+            # current online indices
+            current_online = list(self.online_indices)
+
+            # offline candidates = all - online - busy
+            all_indices = set(range(n))
+            offline_candidates = list(all_indices - self.online_indices - self.busy_indices)
+
+            if not current_online and not offline_candidates:
+                continue
+
+            # how many to flip in each direction
+            num_flip_offline = 0
+            if current_online:
+                num_flip_offline = min(
+                    max(1, int(change_fraction * len(current_online))),
+                    len(current_online),
+                )
+
+            num_flip_online = 0
+            if offline_candidates:
+                num_flip_online = min(
+                    max(1, int(change_fraction * len(offline_candidates))),
+                    len(offline_candidates),
+                )
+
+            # Online -> offline (but never touch busy)
+            if num_flip_offline > 0:
+                for idx in random.sample(current_online, num_flip_offline):
+                    if idx in self.busy_indices:
+                        continue
+                    self.online_indices.discard(idx)
+
+            # Offline -> online
+            if num_flip_online > 0:
+                for idx in random.sample(offline_candidates, num_flip_online):
+                    self.online_indices.add(idx)
+
+            print(
+                f"[{self.zone_name}] reshuffle: online={len(self.online_indices)}, "
+                f"busy={len(self.busy_indices)}"
+            )
+
     def serve(self):
         self._load_data()
         assert self.index is not None
+
         _server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
         # pass shared players dict and lock into the servicer
         messages_pb2_grpc.add_MatchmakerServiceServicer_to_server(PlayerService(self.index, self.offline_players, self.online_players, self.busy_players, self.lock), _server)
@@ -130,7 +223,12 @@ class ServerShard:
         t = threading.Thread(target=self.run_player_simulation, daemon=True)
         t.start()
         _server.start()
-        print("Server started on port 50051")
+        print(f"Server for zone {self.zone_name} started on port {self.port_no}")
+
+        # start background reshuffle of online players
+        t = threading.Thread(target=self._online_fluctuation_loop, daemon=True)
+        t.start()
+
         _server.wait_for_termination()
 
 if __name__ == "__main__":
