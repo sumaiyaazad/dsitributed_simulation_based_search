@@ -1,4 +1,5 @@
 import statistics
+from time import time
 import numpy as np
 from common import WEIGHTS
 from scipy.spatial.distance import pdist, squareform
@@ -7,8 +8,38 @@ import redis
 import json
 from z_score import qualify_match
 import pandas as pd
+import threading
 
 
+
+class stats():
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.commits = 0
+        self.aborts = 0
+        self.z_scores = []
+        self.timestart = time.time()
+
+    def add_commit(self):
+        with self.lock:
+            self.commits += 1
+    def add_abort(self):
+        with self.lock:
+            self.aborts += 1
+    def add_z_score(self, z):
+        with self.lock:
+            self.z_scores.append(z)
+    def get_stats(self):
+        with self.lock:
+            elapsed = time.time() - self.timestart
+            return {
+                "commits": self.commits,
+                "aborts": self.aborts,
+                "elapsed_seconds": elapsed,
+                "commit_rate_per_sec": self.commits / elapsed if elapsed > 0 else 0,
+                "abort_rate_per_sec": self.aborts / elapsed if elapsed > 0 else 0
+            }
+ 
 
 def minmax_norm(vals):
     min_val = min(vals)
@@ -32,9 +63,16 @@ if __name__ == "__main__":
     pubsub.subscribe("matches")
 
     print("subscripted to coordinator")
+    stats = stats(lock=None)
 
     for message in pubsub.listen():
         if message["type"] == "message":
             msg = json.loads(message['data'])
-            z_score, stds = qualify_match(msg, players_df)
-            print(f"Match {msg} has z-score {z_score} with stds {stds}")
+            if msg["message_type"] == "match":
+                z_score, stds = qualify_match(msg["player_ids"], players_df)
+                stats.add_z_score(z_score)
+                stats.add_commit()
+                print(f"Match {msg} has z-score {z_score} with stds {stds}")
+            elif msg["message_type"] == "abort":
+                stats.add_abort()
+                print(f"Match {msg} was aborted.")
