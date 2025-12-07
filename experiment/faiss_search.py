@@ -50,8 +50,8 @@ def create_faiss_index(dim):
     return index
 
 
-def search_faiss_index(index, query, num_neighbor=5):
-    distances, indices = index.search(query, num_neighbor)
+def search_faiss_index(index, query, num_neighbors=5):
+    distances, indices = index.search(query, num_neighbors)
     print("\nNearest neighbors from CSV:")
     return distances, indices
 

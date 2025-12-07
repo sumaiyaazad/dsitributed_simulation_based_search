@@ -29,17 +29,30 @@ def run():
         request = messages_pb2.Player(values=vec.tolist())
 
         response = stub.RequestPlayers(request)
-        result = publish_match(list(response.playersIds), r)
+        result = publish_match(list(response.playersIds), r, time.time())
         print(result)
 
         # PlayerList has playersIds, not values
         print("Client received IDs:", list(response.playersIds))
 
-def publish_match(list_of_players, r):
-    
-    msg = json.dumps(list_of_players)
-    r.publish("matches", msg)
-    print(f"Published: {msg}")
+def publish_match(list_of_players, r, timestamp):
+    msg = {
+        "message_type": "match",
+        "player_ids": list_of_players,
+        "timestamp": timestamp
+    }
+    json_msg = json.dumps(msg)
+    r.publish("matches", json_msg)
+    print(f"Published: {json_msg}")
+
+def publish_abort(r, timestamp):
+    msg = {
+        "message_type": "abort",
+        "timestamp": timestamp
+    }
+    json_msg = json.dumps(msg)
+    r.publish("matches", json_msg)
+    print(f"Published: {json_msg}")
 
 
 if __name__ == "__main__":

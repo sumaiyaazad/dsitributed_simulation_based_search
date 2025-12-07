@@ -3,3 +3,6 @@ scipy
 numpy
 faiss-cpu
 redis
+pandas
+redis
+protobuf
