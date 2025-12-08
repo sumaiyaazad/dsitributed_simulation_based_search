@@ -1,22 +1,52 @@
 syntax = "proto3";
 
-service MatchmakerService {
-  //retrieves a list of players considered online at the time of the rpc being received
-  rpc RequestPlayers (Player) returns (PlayerList);
+package matchmaker;
 
-  //coordinator calls this rpc to tell shards which players are in a match.
-  rpc ConfirmToMatch (PlayerList) returns (Status);
+// =========================
+//  Messages
+// =========================
 
+message PlayerList {
+    repeated uint64 playersIds = 1;
 }
 
 message Status {
-  bool isOK = 1;
+    bool isOK = 1;
+    string message = 2;
 }
 
-message Player {
-  repeated float values = 1;
+message VectorRequest {
+    repeated float values = 1;
 }
 
-message PlayerList {
-  repeated int64 playersIds = 1;
+message HoldRequest {
+    repeated uint64 playersIds = 1;
+}
+
+message HoldResponse {
+    bool success = 1;
+    repeated uint64 failedPlayers = 2; // players that could not be held
+}
+
+message ReleaseRequest {
+    repeated uint64 playersIds = 1;
+}
+
+message Empty {} // for future use
+
+
+// =========================
+//  Main Matchmaker Service
+// =========================
+
+service MatchmakerService {
+    // ANN candidate retrieval
+    rpc RequestPlayers(VectorRequest) returns (PlayerList);
+
+    // Mark players as officially in a match
+    rpc ConfirmToMatch(PlayerList) returns (Status);
+
+    rpc HoldMatchPlayers(HoldRequest) returns (HoldResponse);
+
+    rpc ReleaseMatchPlayers(ReleaseRequest) returns (Status);
 }
