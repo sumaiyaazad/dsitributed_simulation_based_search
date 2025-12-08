@@ -24,37 +24,19 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0emessages.proto\x12\nmatchmaker\"\x07\n\x05\x45mpty\"!\n\x0eSimpleResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\"(\n\nPutRequest\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t\"/\n\x0bPutResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\"\x19\n\nGetRequest\x12\x0b\n\x03key\x18\x01 \x01(\t\"+\n\x0bGetResponse\x12\r\n\x05\x66ound\x18\x01 \x01(\x08\x12\r\n\x05value\x18\x02 \x01(\t\"\x16\n\x08PlayerID\x12\n\n\x02id\x18\x01 \x01(\x04\"4\n\x10PlayerAttributes\x12 \n\x02id\x18\x01 \x01(\x0b\x32\x14.matchmaker.PlayerID\"A\n\nPlayerList\x12\x33\n\rplayersOnline\x18\x01 \x03(\x0b\x32\x1c.matchmaker.PlayerAttributes\"Q\n\x0cMatchRequest\x12.\n\x0eplayersInMatch\x18\x01 \x01(\x0b\x32\x16.matchmaker.PlayerList\x12\x11\n\tmatchTime\x18\x02 \x01(\x02\"+\n\x0fRegisterRequest\x12\n\n\x02ip\x18\x02 \x01(\t\x12\x0c\n\x04port\x18\x03 \x01(\r2\xc6\x01\n\rRegionalShard\x12;\n\x0eRequestPlayers\x12\x11.matchmaker.Empty\x1a\x16.matchmaker.PlayerList\x12:\n\x0bSendToMatch\x12\x18.matchmaker.MatchRequest\x1a\x11.matchmaker.Empty\x12<\n\x08IsOnline\x12\x14.matchmaker.PlayerID\x1a\x1a.matchmaker.SimpleResponse2X\n\x11\x43oordinatorServer\x12\x43\n\x08Register\x12\x1b.matchmaker.RegisterRequest\x1a\x1a.matchmaker.SimpleResponseb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0emessages.proto\"\x16\n\x06Status\x12\x0c\n\x04isOK\x18\x01 \x01(\x08\"\x18\n\x06Player\x12\x0e\n\x06values\x18\x01 \x03(\x02\" \n\nPlayerList\x12\x12\n\nplayersIds\x18\x01 \x03(\x03\x32\x63\n\x11MatchmakerService\x12&\n\x0eRequestPlayers\x12\x07.Player\x1a\x0b.PlayerList\x12&\n\x0e\x43onfirmToMatch\x12\x0b.PlayerList\x1a\x07.Statusb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'messages_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
-  _globals['_EMPTY']._serialized_start=30
-  _globals['_EMPTY']._serialized_end=37
-  _globals['_SIMPLERESPONSE']._serialized_start=39
-  _globals['_SIMPLERESPONSE']._serialized_end=72
-  _globals['_PUTREQUEST']._serialized_start=74
-  _globals['_PUTREQUEST']._serialized_end=114
-  _globals['_PUTRESPONSE']._serialized_start=116
-  _globals['_PUTRESPONSE']._serialized_end=163
-  _globals['_GETREQUEST']._serialized_start=165
-  _globals['_GETREQUEST']._serialized_end=190
-  _globals['_GETRESPONSE']._serialized_start=192
-  _globals['_GETRESPONSE']._serialized_end=235
-  _globals['_PLAYERID']._serialized_start=237
-  _globals['_PLAYERID']._serialized_end=259
-  _globals['_PLAYERATTRIBUTES']._serialized_start=261
-  _globals['_PLAYERATTRIBUTES']._serialized_end=313
-  _globals['_PLAYERLIST']._serialized_start=315
-  _globals['_PLAYERLIST']._serialized_end=380
-  _globals['_MATCHREQUEST']._serialized_start=382
-  _globals['_MATCHREQUEST']._serialized_end=463
-  _globals['_REGISTERREQUEST']._serialized_start=465
-  _globals['_REGISTERREQUEST']._serialized_end=508
-  _globals['_REGIONALSHARD']._serialized_start=511
-  _globals['_REGIONALSHARD']._serialized_end=709
-  _globals['_COORDINATORSERVER']._serialized_start=711
-  _globals['_COORDINATORSERVER']._serialized_end=799
+  _globals['_STATUS']._serialized_start=18
+  _globals['_STATUS']._serialized_end=40
+  _globals['_PLAYER']._serialized_start=42
+  _globals['_PLAYER']._serialized_end=66
+  _globals['_PLAYERLIST']._serialized_start=68
+  _globals['_PLAYERLIST']._serialized_end=100
+  _globals['_MATCHMAKERSERVICE']._serialized_start=102
+  _globals['_MATCHMAKERSERVICE']._serialized_end=201
 # @@protoc_insertion_point(module_scope)
